@@ -23,7 +23,7 @@ Eduardo Murilo Pinto Taborda <20220057376>
 :version-label: Versão
 :last-update-label: Última atualização
 
-Repositório GitHub: link:https://github.com/empt4[github.com/empt4]
+Repositório GitHub: link:https://github.com/empt4/pdi-lista_exercicios_u1[github.com/empt4/pdi-lista_exercicios_u1]
 
 [NOTE]
 ====
