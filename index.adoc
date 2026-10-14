@@ -1,0 +1,404 @@
+= DCA0445: Processamento Digital de Imagens (Unidade 1)
+Eduardo Murilo Pinto Taborda <20220057376>
+:numbered:
+:icons: font
+:experimental:
+:stem:
+:imagesdir: .
+:toc: left
+:doctype: book
+:source-highlighter: rouge
+:caution-caption: Cuidado
+:important-caption: Importante
+:note-caption: Nota
+:tip-caption: Dica
+:warning-caption: Aviso
+:appendix-caption: Apêndice
+:example-caption: Exemplo
+:figure-caption: Figura
+:listing-caption: Listagem
+:table-caption: Tabela
+:toc-title: Sumário
+:preface-title: Prefácio
+:version-label: Versão
+:last-update-label: Última atualização
+
+Repositório GitHub: link:https://github.com/empt4[github.com/empt4]
+
+[NOTE]
+====
+*Observação sobre o salvamento das imagens no WSL:* Durante a execução dos exercícios no ambiente WSL (Ubuntu no Windows), identifiquei um bug na interface gráfica das janelas do OpenCV: sempre que eu clicava no ícone de disquete para salvar a imagem diretamente pela tela da janela (`cv::imshow`), o programa congelava e eu precisava forçar o encerramento pelo terminal. Para resolver isso, adaptei todos os códigos para salvarem os resultados automaticamente via `cv::imwrite` dentro do diretório `build` ao final da execução (ou ao pressionar `ESC`), movendo os arquivos gerados depois para a pasta principal de cada capítulo para organizar este relatório.
+====
+
+== Exemplo Inicial: Hello OpenCV
+
+Realizei este teste inicial para validar o ambiente de compilação com CMake e OpenCV no WSL, carregando uma imagem e convertendo-a para tons de cinza.
+
+[source,cpp]
+.hello.cpp
+----
+include::exemplos/hello/hello.cpp[]
+----
+
+.Imagem original de entrada
+image::exemplos/hello/noturno_icon.jpg[Original, 300, role="thumb"]
+
+.Resultado em tons de cinza
+image::exemplos/hello/noturno_icon_pretoebranco.png[Preto e Branco, 300, role="thumb"]
+
+
+== Capítulo 2: Manipulando Pixels em uma Imagem
+
+Neste capítulo, trabalhei com o acesso direto aos valores dos pixels na estrutura `cv::Mat`. No programa `regions.cpp`, fiz a leitura de duas coordenadas informadas pelo usuário para delimitar um retângulo e apliquei o efeito negativo dentro dessa área subtraindo o valor atual de 255. Já no programa `trocaregioes.cpp`, dividi a imagem em quatro quadrantes iguais usando `cv::Rect` e troquei os quadrantes das diagonais de posição.
+
+[source,cpp]
+.regions.cpp
+----
+include::capitulo_2/regions.cpp[]
+----
+
+[source,cpp]
+.trocaregioes.cpp
+----
+include::capitulo_2/trocaregioes.cpp[]
+----
+
+.Imagem original
+image::capitulo_2/noturno_icon.jpg[Original, 250, role="thumb"]
+
+.Resultado com região negativa selecionada
+image::capitulo_2/noturno_icon_efeito_regiao_negativa.jpg[Região Negativa, 250, role="thumb"]
+
+.Resultado com as regiões diagonais trocadas
+image::capitulo_2/noturno_icon_efeito_regiao_trocada.jpg[Região Trocada, 250, role="thumb"]
+
+
+== Capítulo 3: Tratando Arquivos de Vídeo
+
+Para este exercício, utilizei a classe `cv::VideoCapture` para abrir um arquivo de vídeo (`video.mp4`), ler os quadros em um laço de repetição e aplicar duas transformações separadas: uma convertendo o vídeo para tons de cinza (`video_cinza.cpp`) e outra invertendo as cores dos frames para negativo (`video_negativo.cpp`), salvando o resultado final.
+
+[source,cpp]
+.video_cinza.cpp
+----
+include::capitulo_3/video_cinza.cpp[]
+----
+
+[source,cpp]
+.video_negativo.cpp
+----
+include::capitulo_3/video_negativo.cpp[]
+----
+
+.Vídeo original utilizado na entrada
+video::capitulo_3/video_web.mp4[width=450, options="autoplay,loop,muted"]
+
+.Quadro extraído do vídeo processado em tons de cinza
+image::capitulo_3/video_cinza.png[Vídeo Cinza, 350, role="thumb"]
+
+.Quadro extraído do vídeo processado em negativo
+image::capitulo_3/video_negativo.png[Vídeo Negativo, 350, role="thumb"]
+
+
+== Capítulo 4: Visualização de Imagens e Perfis de Intensidade
+
+Neste exercício, analisei o perfil de intensidade ao longo de uma linha e a representação topográfica 3D das imagens `sementes1.png` e `sementes2.png`. Com esses gráficos, consegui visualizar na prática como a variação de iluminação do fundo afeta os níveis de cinza e o contraste entre os objetos e o fundo da cena.
+
+[source,cpp]
+.visualizacao.cpp
+----
+include::capitulo_4/visualizacao.cpp[]
+----
+
+.Conjunto Sementes 1: Imagem original
+image::capitulo_4/sementes1.png[Sementes 1, 250, role="thumb"]
+
+.Conjunto Sementes 1: Perfil de linha
+image::capitulo_4/linha_sementes1.png[Linha Sementes 1, 400, role="thumb"]
+
+.Conjunto Sementes 1: Superfície topográfica 3D
+image::capitulo_4/3d_sementes1.png[3D Sementes 1, 400, role="thumb"]
+
+.Conjunto Sementes 2: Imagem original
+image::capitulo_4/sementes2.png[Sementes 2, 250, role="thumb"]
+
+.Conjunto Sementes 2: Perfil de linha
+image::capitulo_4/linha_sementes2.png[Linha Sementes 2, 400, role="thumb"]
+
+.Conjunto Sementes 2: Superfície topográfica 3D
+image::capitulo_4/3d_sementes2.png[3D Sementes 2, 400, role="thumb"]
+
+
+== Capítulo 5: Serialização de Dados em Ponto Flutuante via FileStorage
+
+Gerei uma imagem contendo períodos de uma função senoidal representada em ponto flutuante (`CV_32FC1`) e salvei os dados usando `cv::FileStorage`. Depois, comparei os valores originais em ponto flutuante com a versão normalizada e salva em formato `PNG` (inteiro de 8 bits), plotando o gráfico do erro de quantização entre as duas representações.
+
+[source,cpp]
+.filestorage_exercicio.cpp
+----
+include::capitulo_5/filestorage_exercicio.cpp[]
+----
+
+.Imagem da onda senoidal gerada
+image::capitulo_5/onda_senoidal.png[Onda Senoidal, 300, role="thumb"]
+
+.Gráfico do erro de quantização (Float vs PNG 8 bits)
+image::capitulo_5/grafico_erro.png[Gráfico de Erro, 450, role="thumb"]
+
+
+== Capítulo 6: Mapas de Cores (Pseudocores)
+
+Neste capítulo, testei diferentes paletas de pseudocores nativas do OpenCV através da função `cv::applyColorMap` (`colormaps_padrao.cpp`) e também implementei uma tabela de busca (*Look-Up Table* - LUT) própria (`colormap_personalizado.cpp`) para mapear os tons de cinza da imagem para faixas de cores personalizadas no espaço RGB.
+
+[source,cpp]
+.colormaps_padrao.cpp
+----
+include::capitulo_6/colormaps_padrao.cpp[]
+----
+
+[source,cpp]
+.colormap_personalizado.cpp
+----
+include::capitulo_6/colormap_personalizado.cpp[]
+----
+
+.Mapa de cores padrão: Autumn
+image::capitulo_6/resultado_Autumn.png[Autumn, 250, role="thumb"]
+
+.Mapa de cores padrão: Bone
+image::capitulo_6/resultado_Bone.png[Bone, 250, role="thumb"]
+
+.Mapa de cores padrão: Ocean
+image::capitulo_6/resultado_Ocean.png[Ocean, 250, role="thumb"]
+
+.Mapa de cores padrão: Rainbow
+image::capitulo_6/resultado_Rainbow.png[Rainbow, 250, role="thumb"]
+
+.Mapa de cores padrão: Winter
+image::capitulo_6/resultado_Winter.png[Winter, 250, role="thumb"]
+
+.Mapa de cores personalizado via LUT (Roxo)
+image::capitulo_6/resultado_Personalizado.png[Personalizado, 250, role="thumb"]
+
+
+== Capítulo 7: Espaços de Cores
+
+Converti a imagem de entrada para o espaço de cores HSV, separei os canais e apliquei mapas de cores diretamente sobre o canal de matiz (*Hue*), testando tanto mapas prontos do OpenCV quanto uma paleta personalizada para destacar variações de tonalidade.
+
+[source,cpp]
+.colorspace_mapas.cpp
+----
+include::capitulo_7/colorspace_mapas.cpp[]
+----
+
+[source,cpp]
+.colorspace_personalizado.cpp
+----
+include::capitulo_7/colorspace_personalizado.cpp[]
+----
+
+.Manipulação de Hue com mapa Cool
+image::capitulo_7/resultado_Hue_Cool.png[Hue Cool, 250, role="thumb"]
+
+.Manipulação de Hue com mapa Hot
+image::capitulo_7/resultado_Hue_Hot.png[Hue Hot, 250, role="thumb"]
+
+.Manipulação de Hue com mapa Jet
+image::capitulo_7/resultado_Hue_Jet.png[Hue Jet, 250, role="thumb"]
+
+.Manipulação de Hue com mapa Spring
+image::capitulo_7/resultado_Hue_Spring.png[Hue Spring, 250, role="thumb"]
+
+.Manipulação de Hue com mapa Viridis
+image::capitulo_7/resultado_Hue_Viridis.png[Hue Viridis, 250, role="thumb"]
+
+.Manipulação de Hue com paleta Personalizada
+image::capitulo_7/resultado_Hue_Personalizado.png[Hue Personalizado, 250, role="thumb"]
+
+
+== Capítulo 8: Seleção Interativa de Pixels
+
+Modifiquei o programa de referência para permitir selecionar a faixa de cores pintando diretamente sobre a imagem original com o mouse. Ao manter o botão esquerdo pressionado, o programa adiciona os pixels sob o pincel à máscara de seleção; com o botão direito pressionado, ele apaga os pixels da máscara. A partir dos pixels pintados, calculei a média e o desvio padrão de cada canal para segmentar as regiões de interesse.
+
+[source,cpp]
+.colorrange_pintura.cpp
+----
+include::capitulo_8/colorrange_pintura.cpp[]
+----
+
+.Máscara resultante da seleção interativa (Teste 1)
+image::capitulo_8/resultado_mascara_teste1.png[Máscara Teste 1, 350, role="thumb"]
+
+.Máscara resultante da seleção interativa (Teste 2)
+image::capitulo_8/resultado_mascara_teste2.png[Máscara Teste 2, 350, role="thumb"]
+
+
+== Capítulo 9: Combinação de Imagens (Light Painting)
+
+Para criar o efeito de *Light Painting*, gravei um vídeo curto em um quarto escuro desenhando com a lanterna do celular (`light.mp4`). No código, extraí todos os quadros do vídeo e testei duas formas de combiná-los: usando a função `cv::max` e usando a soma direta (`+`).
+
+Com a função `cv::max`, o resultado ficou bem nítido, pois ela compara o quadro acumulado com o atual e guarda apenas o pixel mais claro (o rastro da lanterna), mantendo o fundo escuro intacto. Já com a soma aritmética, como o ambiente não tinha iluminação zero absoluta, o pequeno brilho de fundo e o ruído da câmera foram somados quadro a quadro até estourar o limite de 255, deixando a imagem inteira branca.
+
+[source,cpp]
+.light_painting.cpp
+----
+include::capitulo_9/light_painting.cpp[]
+----
+
+.Vídeo gravado utilizado para extração dos quadros
+video::capitulo_9/light_web.mp4[width=300, options="autoplay,loop,muted"]
+
+.Resultado do Light Painting utilizando cv::max (rastro preservado)
+image::capitulo_9/resultado_lightpainting_max.png[Light Painting Max, 300, role="thumb"]
+
+.Resultado do Light Painting utilizando Soma (imagem 100% saturada em branco)
+image::capitulo_9/resultado_lightpainting_add.png[Light Painting Add, 300, role="thumb"]
+
+
+== Capítulo 10: Decomposição de Imagens em Planos de Bits (Esteganografia)
+
+Neste exercício, implementei um decodificador para recuperar a imagem oculta dentro do arquivo `desafio-esteganografia.png`. Como a esteganografia guarda a informação secreta nos 3 bits menos significativos (LSB) de cada canal de cor da imagem portadora, fiz um deslocamento de 5 bits para a esquerda (`valCodificada << 5`). Essa operação descarta os 5 bits da pintura original e move os 3 bits escondidos para as posições mais significativas (MSB), tornando a imagem oculta visível novamente.
+
+[source,cpp]
+.decodificador.cpp
+----
+include::capitulo_10/decodificador.cpp[]
+----
+
+.Imagem portadora codificada original
+image::capitulo_10/desafio-esteganografia.png[Imagem Codificada, 300, role="thumb"]
+
+.Imagem secreta revelada após o deslocamento de bits
+image::capitulo_10/imagem_revelada.png[Imagem Revelada, 300, role="thumb"]
+
+
+== Capítulo 11: Preenchendo Regiões (Rotulação e Contagem)
+
+No algoritmo original de rotulação, caso existam mais de 255 objetos na cena, a variável de contagem sofre *overflow* porque uma imagem `uchar` (8 bits) só armazena valores de 0 a 255. Para resolver isso em cenários com centenas de objetos, a solução é usar uma matriz de rótulos com maior profundidade, como `CV_32SC1` (inteiros de 32 bits).
+
+Para contar separadamente as bolhas com e sem buracos e ignorar as que tocam as bordas da imagem `bolhas.png`, estruturei o código em quatro passos:
+1. Percorri a primeira e a última linha e coluna da imagem; sempre que encontrei um pixel branco (`255`), apliquei um `floodFill` com `0` para apagar a bolha da borda.
+2. Mudei a cor do fundo da imagem para `1` usando `floodFill` a partir do ponto `(0,0)`. Assim, o fundo passou a valer `1`, as bolhas `255` e apenas os buracos internos continuaram com valor `0`.
+3. Rotulei todas as bolhas restantes com valores sequenciais a partir de `2`.
+4. Varri a matriz procurando pixels com valor `0` (buracos). Ao achar um buraco, olhei o pixel imediatamente à esquerda para identificar o rótulo da bolha a que ele pertence, marquei essa bolha como tendo furo em um vetor booleano e preenchi o buraco com `1` para não contá-lo novamente caso a mesma bolha tivesse mais de um furo.
+
+[source,cpp]
+.labeling_aprimorado.cpp
+----
+include::capitulo_11/labeling_aprimorado.cpp[]
+----
+
+.Imagem original bolhas.png
+image::capitulo_11/bolhas.png[Bolhas Original, 280, role="thumb"]
+
+.Resultado rotulado (normalizado para visualização) sem as bolhas das bordas
+image::capitulo_11/resultado_labeling.png[Bolhas Rotuladas, 280, role="thumb"]
+
+
+== Capítulo 12: Manipulação de Histogramas
+
+Implementei dois programas baseados em histogramas. No `equalize.cpp`, converti cada quadro para tons de cinza e apliquei a função `cv::equalizeHist`, o que espalhou melhor os níveis de intensidade e realçou detalhes que estavam muito escuros no vídeo original. 
+
+No `motiondetector.cpp`, calculei o histograma normalizado do quadro atual e comparei com o histograma do quadro imediatamente anterior usando a distância de *Bhattacharyya* (`cv::HISTCMP_BHATTACHARYYA`). Quando a diferença entre os dois histogramas passa de `0.05` (como acontece quando a luz se move rapidamente na cena), o programa exibe um aviso de movimento detectado na tela.
+
+[NOTE]
+====
+*Nota sobre o uso da câmera:* Como meu computador não possui webcam física, tentei utilizar o celular como câmera através do *DroidCam*. Porém, como o ambiente WSL não reconheceu o dispositivo de vídeo nem o stream HTTP por falta de plugins do GStreamer, programei o código para tentar abrir a câmera inicialmente e, caso nenhuma câmera seja detectada, carregar automaticamente um vídeo gravado (`light.mp4`). Assim, o código continua funcionando normalmente caso seja executado em um computador com webcam reconhecida pelo sistema.
+====
+
+[source,cpp]
+.equalize.cpp
+----
+include::capitulo_12/equalize.cpp[]
+----
+
+[source,cpp]
+.motiondetector.cpp
+----
+include::capitulo_12/motiondetector.cpp[]
+----
+
+.Resultado da equalização: Quadro Original (Esquerda) vs Equalizado (Direita)
+image::capitulo_12/resultado_equalize.png[Equalização, 420, role="thumb"]
+
+.Disparo do alarme visual no detector de movimento
+image::capitulo_12/resultado_motion.png[Detector de Movimento, 280, role="thumb"]
+
+
+== Capítulo 13: Registro de Imagens
+
+Modifiquei o programa de registro para que a escolha dos quatro cantos do visor do voltímetro fosse feita clicando diretamente na imagem com o mouse, através da função `cv::setMouseCallback`. A cada clique, o programa desenha um ponto vermelho de confirmação na tela. Ao registrar o quarto ponto, ele calcula automaticamente a largura e a altura ideais, gera a matriz de transformação com `cv::getPerspectiveTransform` e aplica o `cv::warpPerspective` para alinhar o mostrador de frente.
+
+[source,cpp]
+.registro_interativo.cpp
+----
+include::capitulo_13/registro_interativo.cpp[]
+----
+
+.Seleção interativa dos 4 pontos com o mouse e resultado em tela
+image::capitulo_13/voltimetro_4pontos.png[Seleção dos 4 pontos, 500, role="thumb"]
+
+.Mostrador do voltímetro com perspectiva corrigida
+image::capitulo_13/resultado_voltimetro.png[Voltímetro Corrigido, 320, role="thumb"]
+
+
+== Capítulo 14: Filtragem no Domínio Espacial I (Convolução e Focus Stacking)
+
+Na primeira parte (`convolucao2.cpp`), apliquei o filtro da média com máscaras de tamanhos stem:[3 \times 3], stem:[11 \times 11] e stem:[21 \times 21]. Comparando as três saídas, fica evidente que quanto maior a máscara, mais forte é o borramento, pois o valor de cada pixel passa a ser a média de uma vizinhança muito maior, suavizando todas as bordas e detalhes finos.
+
+Na segunda parte (`depthoffield.cpp`), implementei a correção de profundidade de campo no vídeo `vasos720p.mp4`. Para descobrir quais partes estavam em foco em cada quadro, apliquei um filtro **Laplaciano** stem:[3 \times 3] na imagem em tons de cinza. Como regiões focadas têm bordas bem definidas, elas geram valores altos no Laplaciano. Mantive uma matriz guardando o maior valor absoluto de Laplaciano já visto em cada posição stem:[(x, y)] e, sempre que um novo quadro superava esse valor, copiei o pixel colorido correspondente para a imagem de saída. A técnica funcionou muito bem porque a câmera e os vasos ficam parados durante o vídeo, mudando apenas a distância focal da lente.
+
+[source,cpp]
+.convolucao2.cpp
+----
+include::capitulo_14/convolucao2.cpp[]
+----
+
+.Filtro da média 3x3
+image::capitulo_14/media_03x03.png[Média 3x3, 250, role="thumb"]
+
+.Filtro da média 11x11
+image::capitulo_14/media_11x11.png[Média 11x11, 250, role="thumb"]
+
+.Filtro da média 21x21
+image::capitulo_14/media_21x21.png[Média 21x21, 250, role="thumb"]
+
+[source,cpp]
+.depthoffield.cpp
+----
+include::capitulo_14/depthoffield.cpp[]
+----
+
+.Vídeo original com variação de profundidade de campo (vasos720p.mp4)
+video::capitulo_14/vasos_web.mp4[width=550, options="autoplay,loop,muted"]
+
+.Resultado da reconstrução por Focus Stacking com todos os planos em foco
+image::capitulo_14/resultado_foco.png[Focus Stacking, 550, role="thumb"]
+
+
+== Capítulo 15: Filtragem no Domínio Espacial II (Tilt-Shift)
+
+No programa `tiltshift.cpp`, criei três barras deslizantes (*trackbars*) para controlar a posição vertical do centro em foco, a altura dessa faixa e a força do decaimento. Para fazer uma transição suave entre a imagem original nítida e a imagem borrada (com filtro da média stem:[21 \times 21]), calculei o peso stem:[\alpha] de cada linha usando a equação das tangentes hiperbólicas:
+
+stem:[\alpha(x) = \frac{1}{2} \left( \tanh\frac{x - l_1}{d} - \tanh\frac{x - l_2}{d} \right)]
+
+Já no programa `tiltshiftvideo.cpp`, apliquei esse mesmo efeito de foco seletivo aos quadros do vídeo `vasos720p.mp4`. Para dar a impressão de miniatura em *stop motion*, descartei 3 a cada 4 quadros lidos (`frame_count % 4 != 0`), gravando apenas o quarto quadro processado no arquivo de vídeo final.
+
+[source,cpp]
+.tiltshift.cpp
+----
+include::capitulo_15/tiltshift.cpp[]
+----
+
+[source,cpp]
+.tiltshiftvideo.cpp
+----
+include::capitulo_15/tiltshiftvideo.cpp[]
+----
+
+.Resultado da aplicação interativa do efeito Tilt-Shift em imagem
+image::capitulo_15/resultado_tiltshift.png[Tilt-Shift, 450, role="thumb"]
+
+.Vídeo resultante com efeito Tilt-Shift e Stop Motion
+video::capitulo_15/miniature_video.mp4[width=550, options="autoplay,loop,muted"]
+
+Arquivo de vídeo original em AVI gerado pelo programa: link:capitulo_15/miniature_video.avi[miniature_video.avi]
