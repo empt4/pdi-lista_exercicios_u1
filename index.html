@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="generator" content="Asciidoctor 2.0.26">
 <meta name="author" content="Eduardo Murilo Pinto Taborda &lt;20220057376&gt;">
-<title>DCA0445: Processamento Digital de Imagens (Unidade 1)</title>
+<title>DCA0445: Processamento Digital de Imagens (Unidades 1 e 2)</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
 <style>
 /*! Asciidoctor default stylesheet | MIT License | https://asciidoctor.org */
@@ -556,7 +556,7 @@ pre.rouge .gs {
 </head>
 <body class="book toc2 toc-left">
 <div id="header">
-<h1>DCA0445: Processamento Digital de Imagens (Unidade 1)</h1>
+<h1>DCA0445: Processamento Digital de Imagens (Unidades 1 e 2)</h1>
 <div class="details">
 <span id="author" class="author">Eduardo Murilo Pinto Taborda &lt;20220057376&gt;</span><br>
 </div>
@@ -578,6 +578,11 @@ pre.rouge .gs {
 <li><a href="#_capítulo_13_registro_de_imagens">13. Capítulo 13: Registro de Imagens</a></li>
 <li><a href="#_capítulo_14_filtragem_no_domínio_espacial_i_convolução_e_focus_stacking">14. Capítulo 14: Filtragem no Domínio Espacial I (Convolução e Focus Stacking)</a></li>
 <li><a href="#_capítulo_15_filtragem_no_domínio_espacial_ii_tilt_shift">15. Capítulo 15: Filtragem no Domínio Espacial II (Tilt-Shift)</a></li>
+<li><a href="#_capítulo_16_a_transformada_discreta_de_fourier">16. Capítulo 16: A Transformada Discreta de Fourier</a></li>
+<li><a href="#_capítulo_17_filtragem_no_domínio_da_frequência_filtro_homomórfico">17. Capítulo 17: Filtragem no Domínio da Frequência (Filtro Homomórfico)</a></li>
+<li><a href="#_capítulo_18_limiarização">18. Capítulo 18: Limiarização</a></li>
+<li><a href="#_capítulo_19_detecção_de_bordas_com_o_algoritmo_de_canny_pontilhismo">19. Capítulo 19: Detecção de Bordas com o Algoritmo de Canny (Pontilhismo)</a></li>
+<li><a href="#_capítulo_20_quantização_vetorial_com_k_means">20. Capítulo 20: Quantização Vetorial com k-means</a></li>
 </ul>
 </div>
 </div>
@@ -2325,10 +2330,1053 @@ Your browser does not support the video tag.
 </div>
 </div>
 </div>
+<div class="sect1">
+<h2 id="_capítulo_16_a_transformada_discreta_de_fourier">16. Capítulo 16: A Transformada Discreta de Fourier</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Neste capítulo, calculei o espectro de magnitude da Transformada Discreta de Fourier (DFT) bidimensional para a imagem senoidal de \$256 \times 256\$ pixels com 8 períodos na horizontal, comparando a versão salva em formato PNG (8 bits) com a versão armazenada em ponto flutuante no arquivo YAML (<code>senoide-256.yml</code>).</p>
+</div>
+<div class="paragraph">
+<p>Para gerar o par de arquivos equivalentes com 8 períodos, utilizei o programa <code>filestorage.cpp</code> como base. Em seguida, adaptei o <code>dft.cpp</code> para aceitar tanto imagens convencionais (via <code>cv::imread</code>) quanto matrizes serializadas em YAML (via <code>cv::FileStorage</code> lendo a chave <code>mat</code>). Na leitura do arquivo YAML, mantive os dados diretamente em ponto flutuante (<code>CV_32F</code>) sem convertê-los para 8 bits antes da transformada. Após aplicar o <strong>zero-padding</strong> para o tamanho ótimo da FFT (<code>cv::getOptimalDFTSize</code>), calcular a DFT, trocar os quadrantes para centralizar a origem e aplicar a compressão logarítmica \$\log(1 + |F(u,v)|)\$, o programa salva automaticamente o espectro de magnitude normalizado via <code>cv::imwrite</code>.</p>
+</div>
+<div class="paragraph">
+<p><strong>Comparação com o espectro teórico e análise dos resultados:</strong></p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Valor teórico:</strong> A imagem representa uma senóide horizontal pura de 8 períodos somada a um valor médio constante (nível DC): \$f(x, y) = 128 + 127 \sin(2\pi \cdot 8 \cdot x / 256)\$. No domínio da frequência com a origem centralizada, a DFT teórica apresenta exatamente <strong>três impulsos</strong> sobre o eixo horizontal central (\$v = 0\$) em um fundo completamente preto: um pico central na origem \$(0, 0)\$ correspondente à componente DC e dois picos simétricos em \$(-8, 0)\$ e \$(+8, 0)\$ referentes à frequência fundamental.</p>
+</li>
+<li>
+<p><strong>Espectro obtido com o arquivo PNG (<code>senoide-256.png</code>):</strong> Além dos três picos previstos pela teoria, surgem vários pontos espúrios alinhados ao longo de toda a linha horizontal central. Isso ocorre porque o formato PNG armazena apenas inteiros sem sinal de 8 bits (<code>CV_8U</code>, de 0 a 255), obrigando o arredondamento/truncamento dos valores contínuos da senóide. Esse erro de quantização periódico distorce levemente a forma de onda e introduz harmônicas extras de baixa energia, que se tornam claramente visíveis após a compressão logarítmica usada na exibição.</p>
+</li>
+<li>
+<p><strong>Espectro obtido com o arquivo YAML (<code>senoide-256.yml</code>):</strong> Os pontos extras ao longo do eixo horizontal desaparecem, restando praticamente apenas os três impulsos previstos teoricamente (DC no centro e os dois picos simétricos da frequência fundamental). Essa aproximação fiel ao valor teórico aconteceu porque o arquivo YAML preserva a matriz em ponto flutuante de 32 bits (<code>CV_32FC1</code>), eliminando o erro de quantização de 8 bits antes do cálculo da DFT.</p>
+</li>
+</ul>
+</div>
+<div class="listingblock">
+<div class="title">Listagem 23. filestorage.cpp</div>
+<div class="content">
+<pre class="rouge highlight"><code data-lang="cpp"><span class="cp">#include</span> <span class="cpf">&lt;cmath&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;iostream&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;opencv2/opencv.hpp&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;sstream&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;string&gt;</span><span class="cp">
+</span>
+<span class="kt">int</span> <span class="n">SIDE</span> <span class="o">=</span> <span class="mi">256</span><span class="p">;</span>
+<span class="kt">int</span> <span class="n">PERIODOS</span> <span class="o">=</span> <span class="mi">8</span><span class="p">;</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">**</span> <span class="n">argv</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">stringstream</span> <span class="n">ss_img</span><span class="p">,</span> <span class="n">ss_yml</span><span class="p">;</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">image</span><span class="p">;</span>
+
+  <span class="n">ss_yml</span> <span class="o">&lt;&lt;</span> <span class="s">"senoide-"</span> <span class="o">&lt;&lt;</span> <span class="n">SIDE</span> <span class="o">&lt;&lt;</span> <span class="s">".yml"</span><span class="p">;</span>
+  <span class="n">image</span> <span class="o">=</span> <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span><span class="o">::</span><span class="n">zeros</span><span class="p">(</span><span class="n">SIDE</span><span class="p">,</span> <span class="n">SIDE</span><span class="p">,</span> <span class="n">CV_32FC1</span><span class="p">);</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">FileStorage</span> <span class="n">fs</span><span class="p">(</span><span class="n">ss_yml</span><span class="p">.</span><span class="n">str</span><span class="p">(),</span> <span class="n">cv</span><span class="o">::</span><span class="n">FileStorage</span><span class="o">::</span><span class="n">WRITE</span><span class="p">);</span>
+
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">SIDE</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">j</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="n">SIDE</span><span class="p">;</span> <span class="n">j</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">image</span><span class="p">.</span><span class="n">at</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span> <span class="o">=</span> <span class="mi">127</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">M_PI</span> <span class="o">*</span> <span class="n">PERIODOS</span> <span class="o">*</span> <span class="n">j</span> <span class="o">/</span> <span class="n">SIDE</span><span class="p">)</span> <span class="o">+</span> <span class="mi">128</span><span class="p">;</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+
+  <span class="n">fs</span> <span class="o">&lt;&lt;</span> <span class="s">"mat"</span> <span class="o">&lt;&lt;</span> <span class="n">image</span><span class="p">;</span>
+  <span class="n">fs</span><span class="p">.</span><span class="n">release</span><span class="p">();</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">normalize</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">NORM_MINMAX</span><span class="p">);</span>
+  <span class="n">image</span><span class="p">.</span><span class="n">convertTo</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">CV_8U</span><span class="p">);</span>
+  <span class="n">ss_img</span> <span class="o">&lt;&lt;</span> <span class="s">"senoide-"</span> <span class="o">&lt;&lt;</span> <span class="n">SIDE</span> <span class="o">&lt;&lt;</span> <span class="s">".png"</span><span class="p">;</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">imwrite</span><span class="p">(</span><span class="n">ss_img</span><span class="p">.</span><span class="n">str</span><span class="p">(),</span> <span class="n">image</span><span class="p">);</span>
+
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="title">Listagem 24. dft.cpp</div>
+<div class="content">
+<pre class="rouge highlight"><code data-lang="cpp"><span class="cp">#include</span> <span class="cpf">&lt;iostream&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;opencv2/opencv.hpp&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;string&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;vector&gt;</span><span class="cp">
+</span>
+<span class="kt">void</span> <span class="nf">swapQuadrants</span><span class="p">(</span><span class="n">cv</span><span class="o">::</span><span class="n">Mat</span><span class="o">&amp;</span> <span class="n">image</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">tmp</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">D</span><span class="p">;</span>
+
+  <span class="c1">// Se a imagem tiver tamanho impar, recorta para o maior tamanho par possivel</span>
+  <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="p">(</span><span class="n">cv</span><span class="o">::</span><span class="n">Rect</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">image</span><span class="p">.</span><span class="n">cols</span> <span class="o">&amp;</span> <span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="n">image</span><span class="p">.</span><span class="n">rows</span> <span class="o">&amp;</span> <span class="o">-</span><span class="mi">2</span><span class="p">));</span>
+
+  <span class="kt">int</span> <span class="n">centerX</span> <span class="o">=</span> <span class="n">image</span><span class="p">.</span><span class="n">cols</span> <span class="o">/</span> <span class="mi">2</span><span class="p">;</span>
+  <span class="kt">int</span> <span class="n">centerY</span> <span class="o">=</span> <span class="n">image</span><span class="p">.</span><span class="n">rows</span> <span class="o">/</span> <span class="mi">2</span><span class="p">;</span>
+
+  <span class="c1">// Rearranja os quadrantes para trazer a origem para o centro</span>
+  <span class="c1">// A B   -&gt;  D C</span>
+  <span class="c1">// C D       B A</span>
+  <span class="n">A</span> <span class="o">=</span> <span class="n">image</span><span class="p">(</span><span class="n">cv</span><span class="o">::</span><span class="n">Rect</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">centerX</span><span class="p">,</span> <span class="n">centerY</span><span class="p">));</span>
+  <span class="n">B</span> <span class="o">=</span> <span class="n">image</span><span class="p">(</span><span class="n">cv</span><span class="o">::</span><span class="n">Rect</span><span class="p">(</span><span class="n">centerX</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">centerX</span><span class="p">,</span> <span class="n">centerY</span><span class="p">));</span>
+  <span class="n">C</span> <span class="o">=</span> <span class="n">image</span><span class="p">(</span><span class="n">cv</span><span class="o">::</span><span class="n">Rect</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">centerY</span><span class="p">,</span> <span class="n">centerX</span><span class="p">,</span> <span class="n">centerY</span><span class="p">));</span>
+  <span class="n">D</span> <span class="o">=</span> <span class="n">image</span><span class="p">(</span><span class="n">cv</span><span class="o">::</span><span class="n">Rect</span><span class="p">(</span><span class="n">centerX</span><span class="p">,</span> <span class="n">centerY</span><span class="p">,</span> <span class="n">centerX</span><span class="p">,</span> <span class="n">centerY</span><span class="p">));</span>
+
+  <span class="n">A</span><span class="p">.</span><span class="n">copyTo</span><span class="p">(</span><span class="n">tmp</span><span class="p">);</span>
+  <span class="n">D</span><span class="p">.</span><span class="n">copyTo</span><span class="p">(</span><span class="n">A</span><span class="p">);</span>
+  <span class="n">tmp</span><span class="p">.</span><span class="n">copyTo</span><span class="p">(</span><span class="n">D</span><span class="p">);</span>
+
+  <span class="n">C</span><span class="p">.</span><span class="n">copyTo</span><span class="p">(</span><span class="n">tmp</span><span class="p">);</span>
+  <span class="n">B</span><span class="p">.</span><span class="n">copyTo</span><span class="p">(</span><span class="n">C</span><span class="p">);</span>
+  <span class="n">tmp</span><span class="p">.</span><span class="n">copyTo</span><span class="p">(</span><span class="n">B</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">bool</span> <span class="nf">isYamlFile</span><span class="p">(</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span> <span class="n">filename</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">auto</span> <span class="n">endsWith</span> <span class="o">=</span> <span class="p">[](</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span> <span class="n">str</span><span class="p">,</span> <span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span> <span class="n">suffix</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="n">str</span><span class="p">.</span><span class="n">size</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="n">suffix</span><span class="p">.</span><span class="n">size</span><span class="p">()</span> <span class="o">&amp;&amp;</span>
+           <span class="n">str</span><span class="p">.</span><span class="n">compare</span><span class="p">(</span><span class="n">str</span><span class="p">.</span><span class="n">size</span><span class="p">()</span> <span class="o">-</span> <span class="n">suffix</span><span class="p">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">suffix</span><span class="p">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">suffix</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="p">};</span>
+  <span class="k">return</span> <span class="nf">endsWith</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">".yml"</span><span class="p">)</span> <span class="o">||</span> <span class="n">endsWith</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">".yaml"</span><span class="p">)</span> <span class="o">||</span>
+         <span class="n">endsWith</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">".YML"</span><span class="p">)</span> <span class="o">||</span> <span class="n">endsWith</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">".YAML"</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">**</span> <span class="n">argv</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">argc</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Uso: "</span> <span class="o">&lt;&lt;</span> <span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+              <span class="o">&lt;&lt;</span> <span class="s">" &lt;imagem.png | arquivo.yml&gt; [saida_espectro.png]"</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+    <span class="k">return</span> <span class="n">EXIT_FAILURE</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">inputPath</span> <span class="o">=</span> <span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">];</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">image</span><span class="p">,</span> <span class="n">padded</span><span class="p">,</span> <span class="n">complexImage</span><span class="p">;</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">cv</span><span class="o">::</span><span class="n">Mat</span><span class="o">&gt;</span> <span class="n">planos</span><span class="p">;</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="n">isYamlFile</span><span class="p">(</span><span class="n">inputPath</span><span class="p">))</span> <span class="p">{</span>
+    <span class="n">cv</span><span class="o">::</span><span class="n">FileStorage</span> <span class="n">fs</span><span class="p">(</span><span class="n">inputPath</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">FileStorage</span><span class="o">::</span><span class="n">READ</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">fs</span><span class="p">.</span><span class="n">isOpened</span><span class="p">())</span> <span class="p">{</span>
+      <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Erro abrindo arquivo YAML: "</span> <span class="o">&lt;&lt;</span> <span class="n">inputPath</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+      <span class="k">return</span> <span class="n">EXIT_FAILURE</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="n">fs</span><span class="p">[</span><span class="s">"mat"</span><span class="p">]</span> <span class="o">&gt;&gt;</span> <span class="n">image</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">image</span><span class="p">.</span><span class="n">empty</span><span class="p">())</span> <span class="p">{</span>
+      <span class="c1">// Fallback caso o no raiz do YAML tenha outro nome</span>
+      <span class="n">fs</span><span class="p">.</span><span class="n">getFirstTopLevelNode</span><span class="p">()</span> <span class="o">&gt;&gt;</span> <span class="n">image</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="n">fs</span><span class="p">.</span><span class="n">release</span><span class="p">();</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="n">cv</span><span class="o">::</span><span class="n">imread</span><span class="p">(</span><span class="n">inputPath</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">IMREAD_GRAYSCALE</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="n">image</span><span class="p">.</span><span class="n">empty</span><span class="p">())</span> <span class="p">{</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Erro abrindo imagem: "</span> <span class="o">&lt;&lt;</span> <span class="n">inputPath</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+    <span class="k">return</span> <span class="n">EXIT_FAILURE</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="c1">// Converte para float (CV_32F) preservando os valores exatos do YAML ou do PNG</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">imageFloat</span><span class="p">;</span>
+  <span class="n">image</span><span class="p">.</span><span class="n">convertTo</span><span class="p">(</span><span class="n">imageFloat</span><span class="p">,</span> <span class="n">CV_32F</span><span class="p">);</span>
+
+  <span class="c1">// Expande para o tamanho otimo da DFT com zero-padding</span>
+  <span class="kt">int</span> <span class="n">dft_M</span> <span class="o">=</span> <span class="n">cv</span><span class="o">::</span><span class="n">getOptimalDFTSize</span><span class="p">(</span><span class="n">imageFloat</span><span class="p">.</span><span class="n">rows</span><span class="p">);</span>
+  <span class="kt">int</span> <span class="n">dft_N</span> <span class="o">=</span> <span class="n">cv</span><span class="o">::</span><span class="n">getOptimalDFTSize</span><span class="p">(</span><span class="n">imageFloat</span><span class="p">.</span><span class="n">cols</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">copyMakeBorder</span><span class="p">(</span><span class="n">imageFloat</span><span class="p">,</span> <span class="n">padded</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">dft_M</span> <span class="o">-</span> <span class="n">imageFloat</span><span class="p">.</span><span class="n">rows</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                     <span class="n">dft_N</span> <span class="o">-</span> <span class="n">imageFloat</span><span class="p">.</span><span class="n">cols</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">BORDER_CONSTANT</span><span class="p">,</span>
+                     <span class="n">cv</span><span class="o">::</span><span class="n">Scalar</span><span class="o">::</span><span class="n">all</span><span class="p">(</span><span class="mi">0</span><span class="p">));</span>
+
+  <span class="c1">// Prepara matriz complexa (parte real = imagem, parte imaginaria = zeros)</span>
+  <span class="n">planos</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">padded</span><span class="p">);</span>
+  <span class="n">planos</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">cv</span><span class="o">::</span><span class="n">Mat</span><span class="o">::</span><span class="n">zeros</span><span class="p">(</span><span class="n">padded</span><span class="p">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">CV_32F</span><span class="p">));</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">merge</span><span class="p">(</span><span class="n">planos</span><span class="p">,</span> <span class="n">complexImage</span><span class="p">);</span>
+
+  <span class="c1">// Calcula a DFT e desloca a origem para o centro</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">dft</span><span class="p">(</span><span class="n">complexImage</span><span class="p">,</span> <span class="n">complexImage</span><span class="p">);</span>
+  <span class="n">swapQuadrants</span><span class="p">(</span><span class="n">complexImage</span><span class="p">);</span>
+
+  <span class="c1">// Separa partes real (planos[0]) e imaginaria (planos[1])</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">split</span><span class="p">(</span><span class="n">complexImage</span><span class="p">,</span> <span class="n">planos</span><span class="p">);</span>
+
+  <span class="c1">// Calcula o espectro de magnitude</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">magn</span><span class="p">;</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">magnitude</span><span class="p">(</span><span class="n">planos</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">planos</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">magn</span><span class="p">);</span>
+
+  <span class="c1">// Compressao logaritmica de faixa dinamica e normalizacao para [0, 1]</span>
+  <span class="n">magn</span> <span class="o">+=</span> <span class="n">cv</span><span class="o">::</span><span class="n">Scalar</span><span class="o">::</span><span class="n">all</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">log</span><span class="p">(</span><span class="n">magn</span><span class="p">,</span> <span class="n">magn</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">normalize</span><span class="p">(</span><span class="n">magn</span><span class="p">,</span> <span class="n">magn</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">NORM_MINMAX</span><span class="p">);</span>
+
+  <span class="c1">// Salva o espectro convertido para 8 bits (para o relatorio em AsciiDoc)</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">outputPath</span> <span class="o">=</span>
+      <span class="p">(</span><span class="n">argc</span> <span class="o">&gt;=</span> <span class="mi">3</span><span class="p">)</span> <span class="o">?</span> <span class="n">argv</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+                  <span class="o">:</span> <span class="p">(</span><span class="n">isYamlFile</span><span class="p">(</span><span class="n">inputPath</span><span class="p">)</span> <span class="o">?</span> <span class="s">"espectro_yml.png"</span>
+                                           <span class="o">:</span> <span class="s">"espectro_png.png"</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">magnOut</span><span class="p">;</span>
+  <span class="n">magn</span><span class="p">.</span><span class="n">convertTo</span><span class="p">(</span><span class="n">magnOut</span><span class="p">,</span> <span class="n">CV_8U</span><span class="p">,</span> <span class="mf">255.0</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">imwrite</span><span class="p">(</span><span class="n">outputPath</span><span class="p">,</span> <span class="n">magnOut</span><span class="p">);</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Espectro salvo em: "</span> <span class="o">&lt;&lt;</span> <span class="n">outputPath</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+
+  <span class="c1">// Normaliza apenas para visualizacao correta na janela (CV_32F espera [0,1])</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">displayImg</span><span class="p">;</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">normalize</span><span class="p">(</span><span class="n">imageFloat</span><span class="p">,</span> <span class="n">displayImg</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">NORM_MINMAX</span><span class="p">);</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">imshow</span><span class="p">(</span><span class="s">"Imagem"</span><span class="p">,</span> <span class="n">displayImg</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">imshow</span><span class="p">(</span><span class="s">"Espectro de magnitude"</span><span class="p">,</span> <span class="n">magn</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">waitKey</span><span class="p">();</span>
+
+  <span class="k">return</span> <span class="n">EXIT_SUCCESS</span><span class="p">;</span>
+<span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="imageblock thumb">
+<div class="content">
+<img src="./capitulo_16/senoide-256.png" alt="Senoide 256x256" width="300">
+</div>
+<div class="title">Figura 45. Imagem senoidal 256x256 (8 períodos) utilizada na entrada</div>
+</div>
+<div class="imageblock thumb">
+<div class="content">
+<img src="./capitulo_16/resultado_espectro_png.png" alt="Espectro PNG" width="300">
+</div>
+<div class="title">Figura 46. Espectro de magnitude obtido a partir do arquivo PNG (com harmônicas espúrias por quantização)</div>
+</div>
+<div class="imageblock thumb">
+<div class="content">
+<img src="./capitulo_16/resultado_espectro_yml.png" alt="Espectro YAML" width="300">
+</div>
+<div class="title">Figura 47. Espectro de magnitude obtido a partir do arquivo YAML em ponto flutuante (próximo ao teórico)</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_capítulo_17_filtragem_no_domínio_da_frequência_filtro_homomórfico">17. Capítulo 17: Filtragem no Domínio da Frequência (Filtro Homomórfico)</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Neste capítulo, implementei o filtro homomórfico a partir do programa <code>dftfilter.cpp</code> para corrigir a iluminação irregular de uma cena capturada em baixa luminosidade (<code>cena_escura.jpg</code>) convertida para tons de cinza.</p>
+</div>
+<div class="paragraph">
+<p>O filtro homomórfico parte do modelo de formação da imagem como o produto entre a componente de iluminação (baixas frequências) e a componente de refletância (altas frequências), \$f(x,y) = i(x,y) \cdot r(x,y)\$. Para atuar sobre essas componentes de maneira independente no domínio da frequência, apliquei a transformação logarítmica \$\ln(1 + f(x,y))\$ antes do cálculo da DFT (separando o produto em soma), utilizei <strong>padding</strong> por replicação de bordas (<code>cv::BORDER_REPLICATE</code>) para evitar artefatos nas extremidades e multipliquei o espectro centralizado pela função de transferência do filtro homomórfico via <code>cv::mulSpectrums</code>:</p>
+</div>
+<div class="paragraph">
+<p>\$H(u,v) = (\gamma_H - \gamma_L)\left(1 - e^{-c \frac{D^2(u,v)}{D_0^2}}\right) + \gamma_L\$</p>
+</div>
+<div class="paragraph">
+<p>Após a filtragem, desfiz a troca de quadrantes, calculei a transformada inversa (<code>cv::idft</code> com a flag <code>cv::DFT_SCALE</code>), recortei a região de interesse original e apliquei a função exponencial para retornar ao domínio espacial. O ajuste dos parâmetros foi feito interativamente com <strong>trackbars</strong>, chegando ao melhor equilíbrio entre compressão da variação de iluminação (atenuação das baixas frequências) e realce dos detalhes nas regiões sombreadas (amplificação das altas frequências) com os valores \$\gamma_L = 0{,}40\$, \$\gamma_H = 2{,}00\$, \$c = 1{,}00\$ e \$D_0 = 30{,}00\$.</p>
+</div>
+<div class="listingblock">
+<div class="title">Listagem 25. homomorfico.cpp</div>
+<div class="content">
+<pre class="rouge highlight"><code data-lang="cpp"><span class="cp">#include</span> <span class="cpf">&lt;algorithm&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;cmath&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;iomanip&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;iostream&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;opencv2/opencv.hpp&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;vector&gt;</span><span class="cp">
+</span>
+<span class="c1">// Variaveis globais para atualizacao interativa pelas trackbars</span>
+<span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">origGray</span><span class="p">;</span>
+<span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">complexInput</span><span class="p">;</span>
+<span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">filteredResult</span><span class="p">;</span>
+<span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">filterVis</span><span class="p">;</span>
+
+<span class="kt">int</span> <span class="n">gammaL_slider</span> <span class="o">=</span> <span class="mi">40</span><span class="p">;</span>   <span class="c1">// gamma_L = slider / 100.0 (0.00 a 1.00)</span>
+<span class="kt">int</span> <span class="n">gammaH_slider</span> <span class="o">=</span> <span class="mi">200</span><span class="p">;</span>  <span class="c1">// gamma_H = slider / 100.0 (0.00 a 4.00)</span>
+<span class="kt">int</span> <span class="n">c_slider</span> <span class="o">=</span> <span class="mi">10</span><span class="p">;</span>        <span class="c1">// c       = slider / 10.0  (0.1 a 10.0)</span>
+<span class="kt">int</span> <span class="n">d0_slider</span> <span class="o">=</span> <span class="mi">30</span><span class="p">;</span>       <span class="c1">// D0      = frequencia de corte (pixels)</span>
+
+<span class="kt">void</span> <span class="nf">swapQuadrants</span><span class="p">(</span><span class="n">cv</span><span class="o">::</span><span class="n">Mat</span><span class="o">&amp;</span> <span class="n">image</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">tmp</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">D</span><span class="p">;</span>
+
+  <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="p">(</span><span class="n">cv</span><span class="o">::</span><span class="n">Rect</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">image</span><span class="p">.</span><span class="n">cols</span> <span class="o">&amp;</span> <span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="n">image</span><span class="p">.</span><span class="n">rows</span> <span class="o">&amp;</span> <span class="o">-</span><span class="mi">2</span><span class="p">));</span>
+
+  <span class="kt">int</span> <span class="n">centerX</span> <span class="o">=</span> <span class="n">image</span><span class="p">.</span><span class="n">cols</span> <span class="o">/</span> <span class="mi">2</span><span class="p">;</span>
+  <span class="kt">int</span> <span class="n">centerY</span> <span class="o">=</span> <span class="n">image</span><span class="p">.</span><span class="n">rows</span> <span class="o">/</span> <span class="mi">2</span><span class="p">;</span>
+
+  <span class="n">A</span> <span class="o">=</span> <span class="n">image</span><span class="p">(</span><span class="n">cv</span><span class="o">::</span><span class="n">Rect</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">centerX</span><span class="p">,</span> <span class="n">centerY</span><span class="p">));</span>
+  <span class="n">B</span> <span class="o">=</span> <span class="n">image</span><span class="p">(</span><span class="n">cv</span><span class="o">::</span><span class="n">Rect</span><span class="p">(</span><span class="n">centerX</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">centerX</span><span class="p">,</span> <span class="n">centerY</span><span class="p">));</span>
+  <span class="n">C</span> <span class="o">=</span> <span class="n">image</span><span class="p">(</span><span class="n">cv</span><span class="o">::</span><span class="n">Rect</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">centerY</span><span class="p">,</span> <span class="n">centerX</span><span class="p">,</span> <span class="n">centerY</span><span class="p">));</span>
+  <span class="n">D</span> <span class="o">=</span> <span class="n">image</span><span class="p">(</span><span class="n">cv</span><span class="o">::</span><span class="n">Rect</span><span class="p">(</span><span class="n">centerX</span><span class="p">,</span> <span class="n">centerY</span><span class="p">,</span> <span class="n">centerX</span><span class="p">,</span> <span class="n">centerY</span><span class="p">));</span>
+
+  <span class="n">A</span><span class="p">.</span><span class="n">copyTo</span><span class="p">(</span><span class="n">tmp</span><span class="p">);</span>
+  <span class="n">D</span><span class="p">.</span><span class="n">copyTo</span><span class="p">(</span><span class="n">A</span><span class="p">);</span>
+  <span class="n">tmp</span><span class="p">.</span><span class="n">copyTo</span><span class="p">(</span><span class="n">D</span><span class="p">);</span>
+
+  <span class="n">C</span><span class="p">.</span><span class="n">copyTo</span><span class="p">(</span><span class="n">tmp</span><span class="p">);</span>
+  <span class="n">B</span><span class="p">.</span><span class="n">copyTo</span><span class="p">(</span><span class="n">C</span><span class="p">);</span>
+  <span class="n">tmp</span><span class="p">.</span><span class="n">copyTo</span><span class="p">(</span><span class="n">B</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">void</span> <span class="nf">makeHomomorphicFilter</span><span class="p">(</span><span class="k">const</span> <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span><span class="o">&amp;</span> <span class="n">image</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span><span class="o">&amp;</span> <span class="n">filter</span><span class="p">,</span> <span class="kt">float</span> <span class="n">gammaL</span><span class="p">,</span>
+                           <span class="kt">float</span> <span class="n">gammaH</span><span class="p">,</span> <span class="kt">float</span> <span class="n">c</span><span class="p">,</span> <span class="kt">float</span> <span class="n">d0</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat_</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span> <span class="n">filter2D</span><span class="p">(</span><span class="n">image</span><span class="p">.</span><span class="n">rows</span><span class="p">,</span> <span class="n">image</span><span class="p">.</span><span class="n">cols</span><span class="p">);</span>
+  <span class="kt">int</span> <span class="n">centerX</span> <span class="o">=</span> <span class="n">image</span><span class="p">.</span><span class="n">cols</span> <span class="o">/</span> <span class="mi">2</span><span class="p">;</span>
+  <span class="kt">int</span> <span class="n">centerY</span> <span class="o">=</span> <span class="n">image</span><span class="p">.</span><span class="n">rows</span> <span class="o">/</span> <span class="mi">2</span><span class="p">;</span>
+  <span class="kt">float</span> <span class="n">d0_sq</span> <span class="o">=</span> <span class="n">d0</span> <span class="o">*</span> <span class="n">d0</span><span class="p">;</span>
+
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">image</span><span class="p">.</span><span class="n">rows</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">j</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="n">image</span><span class="p">.</span><span class="n">cols</span><span class="p">;</span> <span class="n">j</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+      <span class="kt">float</span> <span class="n">d2</span> <span class="o">=</span> <span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="p">((</span><span class="n">i</span> <span class="o">-</span> <span class="n">centerY</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">i</span> <span class="o">-</span> <span class="n">centerY</span><span class="p">)</span> <span class="o">+</span>
+                                    <span class="p">(</span><span class="n">j</span> <span class="o">-</span> <span class="n">centerX</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">j</span> <span class="o">-</span> <span class="n">centerX</span><span class="p">));</span>
+      <span class="n">filter2D</span><span class="p">.</span><span class="n">at</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span> <span class="o">=</span>
+          <span class="p">(</span><span class="n">gammaH</span> <span class="o">-</span> <span class="n">gammaL</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0f</span> <span class="o">-</span> <span class="n">std</span><span class="o">::</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">c</span> <span class="o">*</span> <span class="p">(</span><span class="n">d2</span> <span class="o">/</span> <span class="n">d0_sq</span><span class="p">)))</span> <span class="o">+</span> <span class="n">gammaL</span><span class="p">;</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">normalize</span><span class="p">(</span><span class="n">filter2D</span><span class="p">,</span> <span class="n">filterVis</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">NORM_MINMAX</span><span class="p">);</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">planes</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span><span class="n">filter2D</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span><span class="o">::</span><span class="n">zeros</span><span class="p">(</span><span class="n">filter2D</span><span class="p">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">CV_32F</span><span class="p">)};</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">merge</span><span class="p">(</span><span class="n">planes</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">filter</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">void</span> <span class="nf">applyHomomorphicFilter</span><span class="p">(</span><span class="kt">int</span><span class="p">,</span> <span class="kt">void</span><span class="o">*</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kt">float</span> <span class="n">gammaL</span> <span class="o">=</span> <span class="n">gammaL_slider</span> <span class="o">/</span> <span class="mf">100.0f</span><span class="p">;</span>
+  <span class="kt">float</span> <span class="n">gammaH</span> <span class="o">=</span> <span class="n">gammaH_slider</span> <span class="o">/</span> <span class="mf">100.0f</span><span class="p">;</span>
+  <span class="kt">float</span> <span class="n">c</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">c_slider</span><span class="p">)</span> <span class="o">/</span> <span class="mf">10.0f</span><span class="p">;</span>
+  <span class="kt">float</span> <span class="n">d0</span> <span class="o">=</span> <span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">d0_slider</span><span class="p">));</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">filter</span><span class="p">,</span> <span class="n">filtered</span><span class="p">;</span>
+  <span class="n">makeHomomorphicFilter</span><span class="p">(</span><span class="n">complexInput</span><span class="p">,</span> <span class="n">filter</span><span class="p">,</span> <span class="n">gammaL</span><span class="p">,</span> <span class="n">gammaH</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">d0</span><span class="p">);</span>
+
+  <span class="c1">// Multiplicacao no dominio da frequencia</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">mulSpectrums</span><span class="p">(</span><span class="n">complexInput</span><span class="p">,</span> <span class="n">filter</span><span class="p">,</span> <span class="n">filtered</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+
+  <span class="c1">// DFT inversa com escalonamento (DFT_SCALE evita overflow no exp)</span>
+  <span class="n">swapQuadrants</span><span class="p">(</span><span class="n">filtered</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">idft</span><span class="p">(</span><span class="n">filtered</span><span class="p">,</span> <span class="n">filtered</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">DFT_SCALE</span><span class="p">);</span>
+
+  <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">cv</span><span class="o">::</span><span class="n">Mat</span><span class="o">&gt;</span> <span class="n">planos</span><span class="p">;</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">split</span><span class="p">(</span><span class="n">filtered</span><span class="p">,</span> <span class="n">planos</span><span class="p">);</span>
+
+  <span class="c1">// Recorta para o tamanho original (remove o padding)</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">Rect</span> <span class="n">roi</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">origGray</span><span class="p">.</span><span class="n">cols</span><span class="p">,</span> <span class="n">origGray</span><span class="p">.</span><span class="n">rows</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">result</span> <span class="o">=</span> <span class="n">planos</span><span class="p">[</span><span class="mi">0</span><span class="p">](</span><span class="n">roi</span><span class="p">).</span><span class="n">clone</span><span class="p">();</span>
+
+  <span class="c1">// Exponencial para retornar do dominio logaritmico</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">exp</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">result</span><span class="p">);</span>
+  <span class="n">result</span> <span class="o">-=</span> <span class="mf">1.0f</span><span class="p">;</span>
+
+  <span class="c1">// Normaliza para [0, 1] para exibicao</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">normalize</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">filteredResult</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">NORM_MINMAX</span><span class="p">);</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">imshow</span><span class="p">(</span><span class="s">"Original (Cinza)"</span><span class="p">,</span> <span class="n">origGray</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">imshow</span><span class="p">(</span><span class="s">"Filtro Homomorfico"</span><span class="p">,</span> <span class="n">filteredResult</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">imshow</span><span class="p">(</span><span class="s">"Mascara H(u,v)"</span><span class="p">,</span> <span class="n">filterVis</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">void</span> <span class="nf">saveResults</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kt">float</span> <span class="n">gammaL</span> <span class="o">=</span> <span class="n">gammaL_slider</span> <span class="o">/</span> <span class="mf">100.0f</span><span class="p">;</span>
+  <span class="kt">float</span> <span class="n">gammaH</span> <span class="o">=</span> <span class="n">gammaH_slider</span> <span class="o">/</span> <span class="mf">100.0f</span><span class="p">;</span>
+  <span class="kt">float</span> <span class="n">c</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">c_slider</span><span class="p">)</span> <span class="o">/</span> <span class="mf">10.0f</span><span class="p">;</span>
+  <span class="kt">float</span> <span class="n">d0</span> <span class="o">=</span> <span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">d0_slider</span><span class="p">));</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">outFiltered</span><span class="p">,</span> <span class="n">outFilter</span><span class="p">;</span>
+  <span class="n">filteredResult</span><span class="p">.</span><span class="n">convertTo</span><span class="p">(</span><span class="n">outFiltered</span><span class="p">,</span> <span class="n">CV_8U</span><span class="p">,</span> <span class="mf">255.0</span><span class="p">);</span>
+  <span class="n">filterVis</span><span class="p">.</span><span class="n">convertTo</span><span class="p">(</span><span class="n">outFilter</span><span class="p">,</span> <span class="n">CV_8U</span><span class="p">,</span> <span class="mf">255.0</span><span class="p">);</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">imwrite</span><span class="p">(</span><span class="s">"resultado_original_cinza.png"</span><span class="p">,</span> <span class="n">origGray</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">imwrite</span><span class="p">(</span><span class="s">"resultado_homomorfico.png"</span><span class="p">,</span> <span class="n">outFiltered</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">imwrite</span><span class="p">(</span><span class="s">"resultado_filtro_homomorfico.png"</span><span class="p">,</span> <span class="n">outFilter</span><span class="p">);</span>
+
+  <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">fixed</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">setprecision</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            <span class="o">&lt;&lt;</span> <span class="s">"</span><span class="se">\n</span><span class="s">Imagens salvas em capitulo_17/:</span><span class="se">\n</span><span class="s">"</span>
+            <span class="o">&lt;&lt;</span> <span class="s">"  - resultado_original_cinza.png</span><span class="se">\n</span><span class="s">"</span>
+            <span class="o">&lt;&lt;</span> <span class="s">"  - resultado_homomorfico.png</span><span class="se">\n</span><span class="s">"</span>
+            <span class="o">&lt;&lt;</span> <span class="s">"  - resultado_filtro_homomorfico.png</span><span class="se">\n</span><span class="s">"</span>
+            <span class="o">&lt;&lt;</span> <span class="s">"Parametros utilizados: gamma_L = "</span> <span class="o">&lt;&lt;</span> <span class="n">gammaL</span>
+            <span class="o">&lt;&lt;</span> <span class="s">", gamma_H = "</span> <span class="o">&lt;&lt;</span> <span class="n">gammaH</span> <span class="o">&lt;&lt;</span> <span class="s">", c = "</span> <span class="o">&lt;&lt;</span> <span class="n">c</span> <span class="o">&lt;&lt;</span> <span class="s">", D0 = "</span> <span class="o">&lt;&lt;</span> <span class="n">d0</span>
+            <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">**</span> <span class="n">argv</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">argc</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Uso: "</span> <span class="o">&lt;&lt;</span> <span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;&lt;</span> <span class="s">" &lt;imagem_mal_iluminada&gt;"</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+    <span class="k">return</span> <span class="n">EXIT_FAILURE</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="n">origGray</span> <span class="o">=</span> <span class="n">cv</span><span class="o">::</span><span class="n">imread</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">cv</span><span class="o">::</span><span class="n">IMREAD_GRAYSCALE</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">origGray</span><span class="p">.</span><span class="n">empty</span><span class="p">())</span> <span class="p">{</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Erro abrindo imagem: "</span> <span class="o">&lt;&lt;</span> <span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+    <span class="k">return</span> <span class="n">EXIT_FAILURE</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="c1">// Redimensiona fotos muito grandes para manter as trackbars fluidas</span>
+  <span class="kt">int</span> <span class="n">maxDim</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">max</span><span class="p">(</span><span class="n">origGray</span><span class="p">.</span><span class="n">rows</span><span class="p">,</span> <span class="n">origGray</span><span class="p">.</span><span class="n">cols</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">maxDim</span> <span class="o">&gt;</span> <span class="mi">800</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kt">double</span> <span class="n">scale</span> <span class="o">=</span> <span class="mf">800.0</span> <span class="o">/</span> <span class="n">maxDim</span><span class="p">;</span>
+    <span class="n">cv</span><span class="o">::</span><span class="n">resize</span><span class="p">(</span><span class="n">origGray</span><span class="p">,</span> <span class="n">origGray</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">Size</span><span class="p">(),</span> <span class="n">scale</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">INTER_AREA</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="c1">// Tamanho otimo e par para a DFT (evita recorte no swapQuadrants)</span>
+  <span class="kt">int</span> <span class="n">dft_M</span> <span class="o">=</span> <span class="n">cv</span><span class="o">::</span><span class="n">getOptimalDFTSize</span><span class="p">(</span><span class="n">origGray</span><span class="p">.</span><span class="n">rows</span><span class="p">);</span>
+  <span class="kt">int</span> <span class="n">dft_N</span> <span class="o">=</span> <span class="n">cv</span><span class="o">::</span><span class="n">getOptimalDFTSize</span><span class="p">(</span><span class="n">origGray</span><span class="p">.</span><span class="n">cols</span><span class="p">);</span>
+  <span class="k">while</span> <span class="p">(</span><span class="n">dft_M</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span> <span class="n">dft_M</span> <span class="o">=</span> <span class="n">cv</span><span class="o">::</span><span class="n">getOptimalDFTSize</span><span class="p">(</span><span class="n">dft_M</span> <span class="o">+</span> <span class="mi">1</span><span class="p">);</span>
+  <span class="k">while</span> <span class="p">(</span><span class="n">dft_N</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span> <span class="n">dft_N</span> <span class="o">=</span> <span class="n">cv</span><span class="o">::</span><span class="n">getOptimalDFTSize</span><span class="p">(</span><span class="n">dft_N</span> <span class="o">+</span> <span class="mi">1</span><span class="p">);</span>
+
+  <span class="c1">// Padding replicando a borda (reduz artefatos de ringing ao realcar altas freq.)</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">padded</span><span class="p">;</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">copyMakeBorder</span><span class="p">(</span><span class="n">origGray</span><span class="p">,</span> <span class="n">padded</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">dft_M</span> <span class="o">-</span> <span class="n">origGray</span><span class="p">.</span><span class="n">rows</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                     <span class="n">dft_N</span> <span class="o">-</span> <span class="n">origGray</span><span class="p">.</span><span class="n">cols</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">BORDER_REPLICATE</span><span class="p">);</span>
+
+  <span class="c1">// Conversao para float e transformacao logaritmica ln(1 + f(x,y))</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">paddedFloat</span><span class="p">,</span> <span class="n">logPadded</span><span class="p">;</span>
+  <span class="n">padded</span><span class="p">.</span><span class="n">convertTo</span><span class="p">(</span><span class="n">paddedFloat</span><span class="p">,</span> <span class="n">CV_32F</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">log</span><span class="p">(</span><span class="n">paddedFloat</span> <span class="o">+</span> <span class="mf">1.0f</span><span class="p">,</span> <span class="n">logPadded</span><span class="p">);</span>
+
+  <span class="c1">// Monta matriz complexa e pre-calcula a DFT uma unica vez</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">cv</span><span class="o">::</span><span class="n">Mat</span><span class="o">&gt;</span> <span class="n">planos</span><span class="p">;</span>
+  <span class="n">planos</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">logPadded</span><span class="p">);</span>
+  <span class="n">planos</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">cv</span><span class="o">::</span><span class="n">Mat</span><span class="o">::</span><span class="n">zeros</span><span class="p">(</span><span class="n">logPadded</span><span class="p">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">CV_32F</span><span class="p">));</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">merge</span><span class="p">(</span><span class="n">planos</span><span class="p">,</span> <span class="n">complexInput</span><span class="p">);</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">dft</span><span class="p">(</span><span class="n">complexInput</span><span class="p">,</span> <span class="n">complexInput</span><span class="p">);</span>
+  <span class="n">swapQuadrants</span><span class="p">(</span><span class="n">complexInput</span><span class="p">);</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">namedWindow</span><span class="p">(</span><span class="s">"Filtro Homomorfico"</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">WINDOW_AUTOSIZE</span><span class="p">);</span>
+  <span class="kt">int</span> <span class="n">maxD0</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">min</span><span class="p">(</span><span class="n">dft_M</span><span class="p">,</span> <span class="n">dft_N</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">;</span>
+  <span class="n">d0_slider</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">min</span><span class="p">(</span><span class="n">d0_slider</span><span class="p">,</span> <span class="n">maxD0</span><span class="p">);</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">createTrackbar</span><span class="p">(</span><span class="s">"gamma_L (x100)"</span><span class="p">,</span> <span class="s">"Filtro Homomorfico"</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">gammaL_slider</span><span class="p">,</span>
+                     <span class="mi">100</span><span class="p">,</span> <span class="n">applyHomomorphicFilter</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">createTrackbar</span><span class="p">(</span><span class="s">"gamma_H (x100)"</span><span class="p">,</span> <span class="s">"Filtro Homomorfico"</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">gammaH_slider</span><span class="p">,</span>
+                     <span class="mi">400</span><span class="p">,</span> <span class="n">applyHomomorphicFilter</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">createTrackbar</span><span class="p">(</span><span class="s">"c (x10)"</span><span class="p">,</span> <span class="s">"Filtro Homomorfico"</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">c_slider</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span>
+                     <span class="n">applyHomomorphicFilter</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">createTrackbar</span><span class="p">(</span><span class="s">"D0"</span><span class="p">,</span> <span class="s">"Filtro Homomorfico"</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">d0_slider</span><span class="p">,</span> <span class="n">maxD0</span><span class="p">,</span>
+                     <span class="n">applyHomomorphicFilter</span><span class="p">);</span>
+
+  <span class="n">applyHomomorphicFilter</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">nullptr</span><span class="p">);</span>
+
+  <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Ajuste as trackbars na janela 'Filtro Homomorfico'.</span><span class="se">\n</span><span class="s">"</span>
+            <span class="o">&lt;&lt;</span> <span class="s">"Pressione 's' para salvar ou 'ESC' para salvar e sair."</span>
+            <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+
+  <span class="k">while</span> <span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kt">int</span> <span class="n">key</span> <span class="o">=</span> <span class="n">cv</span><span class="o">::</span><span class="n">waitKey</span><span class="p">(</span><span class="mi">30</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">key</span> <span class="o">==</span> <span class="sc">'s'</span> <span class="o">||</span> <span class="n">key</span> <span class="o">==</span> <span class="sc">'S'</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">saveResults</span><span class="p">();</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="nf">if</span> <span class="p">(</span><span class="n">key</span> <span class="o">==</span> <span class="mi">27</span><span class="p">)</span> <span class="p">{</span>  <span class="c1">// ESC</span>
+      <span class="n">saveResults</span><span class="p">();</span>
+      <span class="k">break</span><span class="p">;</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+
+  <span class="k">return</span> <span class="n">EXIT_SUCCESS</span><span class="p">;</span>
+<span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="imageblock thumb">
+<div class="content">
+<img src="./capitulo_17/resultado_original_cinza.png" alt="Cena Original Cinza" width="400">
+</div>
+<div class="title">Figura 48. Cena original com iluminação irregular em tons de cinza</div>
+</div>
+<div class="imageblock thumb">
+<div class="content">
+<img src="./capitulo_17/resultado_filtro_homomorfico.png" alt="Máscara Homomórfica" width="350">
+</div>
+<div class="title">Figura 49. Máscara do filtro homomórfico H(u,v) no domínio da frequência</div>
+</div>
+<div class="imageblock thumb">
+<div class="content">
+<img src="./capitulo_17/resultado_homomorfico.png" alt="Resultado Homomórfico" width="400">
+</div>
+<div class="title">Figura 50. Resultado após a filtragem homomórfica (gamma_L = 0.40, gamma_H = 2.00, c = 1.00, D0 = 30.00)</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_capítulo_18_limiarização">18. Capítulo 18: Limiarização</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Neste capítulo, avaliei a limiarização automática pelo método de Otsu (<code>cv::THRESH_BINARY | cv::THRESH_OTSU</code>) na imagem <code>sementes2.png</code> e implementei uma etapa prévia de correção de iluminação utilizando filtragem gaussiana para viabilizar a segmentação correta das sementes.</p>
+</div>
+<div class="paragraph">
+<p><strong>Análise da limiarização direta em <code>sementes2.png</code>:</strong>
+Ao aplicar o algoritmo de Otsu diretamente sobre <code>sementes2.png</code>, o método calculou um único limiar global igual a <code>107</code>. Como a imagem apresenta um forte gradiente de iluminação — com a parte superior e os cantos bem mais escuros do que a região inferior —, os pixels do fundo nas áreas sombreadas possuem intensidade menor que o limiar global e acabam classificados como preto, fundindo-se com as sementes do topo e impedindo a segmentação correta.</p>
+</div>
+<div class="paragraph">
+<p><strong>Correção de iluminação combinando a imagem original com o filtro gaussiano:</strong>
+Considerando o modelo multiplicativo de formação da imagem \$f(x,y) = r(x,y) \cdot i(x,y)\$, em que \$r(x,y)\$ representa a refletância dos objetos e \$i(x,y)\$ a iluminação da cena, apliquei um filtro gaussiano com desvio padrão elevado (\$\sigma = 35\$) sobre a imagem em ponto flutuante (<code>CV_32F</code>). Com um \$\sigma\$ bem maior que o tamanho das sementes, os objetos são suavizados e a imagem filtrada passa a estimar apenas o perfil lento da iluminação de fundo \$i(x,y)\$.</p>
+</div>
+<div class="paragraph">
+<p>Para remover o gradiente de iluminação, combinei as duas imagens por meio da <strong>divisão</strong> ponto a ponto (somando <code>1.0</code> no numerador e no denominador para evitar divisão por zero):</p>
+</div>
+<div class="paragraph">
+<p>\$f_{\text{corr}}(x,y) = \frac{f(x,y) + 1}{f_{\text{gauss}}(x,y) + 1}\$</p>
+</div>
+<div class="paragraph">
+<p>Após normalizar o resultado para o intervalo <code>[0, 255]</code>, o fundo tornou-se uniforme em toda a cena, preservando o contraste das sementes mesmo nas regiões originalmente mais escuras. Aplicando novamente o método de Otsu sobre a imagem corrigida (limiar calculado igual a <code>110</code>), todas as sementes foram separadas do fundo de forma limpa e precisa.</p>
+</div>
+<div class="listingblock">
+<div class="title">Listagem 26. threshold.cpp</div>
+<div class="content">
+<pre class="rouge highlight"><code data-lang="cpp"><span class="cp">#include</span> <span class="cpf">&lt;iostream&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;opencv2/opencv.hpp&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;string&gt;</span><span class="cp">
+</span>
+<span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="nf">getBaseName</span><span class="p">(</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span> <span class="n">path</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kt">size_t</span> <span class="n">slash</span> <span class="o">=</span> <span class="n">path</span><span class="p">.</span><span class="n">find_last_of</span><span class="p">(</span><span class="s">"/</span><span class="se">\\</span><span class="s">"</span><span class="p">);</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">filename</span> <span class="o">=</span>
+      <span class="p">(</span><span class="n">slash</span> <span class="o">==</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">::</span><span class="n">npos</span><span class="p">)</span> <span class="o">?</span> <span class="n">path</span> <span class="o">:</span> <span class="n">path</span><span class="p">.</span><span class="n">substr</span><span class="p">(</span><span class="n">slash</span> <span class="o">+</span> <span class="mi">1</span><span class="p">);</span>
+  <span class="kt">size_t</span> <span class="n">dot</span> <span class="o">=</span> <span class="n">filename</span><span class="p">.</span><span class="n">find_last_of</span><span class="p">(</span><span class="sc">'.'</span><span class="p">);</span>
+  <span class="k">return</span> <span class="p">(</span><span class="n">dot</span> <span class="o">==</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">::</span><span class="n">npos</span><span class="p">)</span> <span class="o">?</span> <span class="n">filename</span> <span class="o">:</span> <span class="n">filename</span><span class="p">.</span><span class="n">substr</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">dot</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">**</span> <span class="n">argv</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">argc</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Uso: "</span> <span class="o">&lt;&lt;</span> <span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;&lt;</span> <span class="s">" &lt;imagem&gt; [sigma]"</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+    <span class="k">return</span> <span class="n">EXIT_FAILURE</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">image</span> <span class="o">=</span> <span class="n">cv</span><span class="o">::</span><span class="n">imread</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">cv</span><span class="o">::</span><span class="n">IMREAD_GRAYSCALE</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">image</span><span class="p">.</span><span class="n">empty</span><span class="p">())</span> <span class="p">{</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Imagem nao carregou corretamente: "</span> <span class="o">&lt;&lt;</span> <span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+    <span class="k">return</span> <span class="n">EXIT_FAILURE</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="kt">double</span> <span class="n">sigma</span> <span class="o">=</span> <span class="p">(</span><span class="n">argc</span> <span class="o">&gt;=</span> <span class="mi">3</span><span class="p">)</span> <span class="o">?</span> <span class="n">std</span><span class="o">::</span><span class="n">stod</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span> <span class="o">:</span> <span class="mf">35.0</span><span class="p">;</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">base</span> <span class="o">=</span> <span class="n">getBaseName</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>
+
+  <span class="c1">// 1. Limiarizacao de Otsu direta (sem correcao de iluminacao)</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">otsuDireto</span><span class="p">;</span>
+  <span class="kt">double</span> <span class="n">limiarDireto</span> <span class="o">=</span> <span class="n">cv</span><span class="o">::</span><span class="n">threshold</span><span class="p">(</span>
+      <span class="n">image</span><span class="p">,</span> <span class="n">otsuDireto</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">THRESH_BINARY</span> <span class="o">|</span> <span class="n">cv</span><span class="o">::</span><span class="n">THRESH_OTSU</span><span class="p">);</span>
+
+  <span class="c1">// 2. Estimativa da iluminacao de fundo via filtro Gaussiano de grande sigma</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">imgFloat</span><span class="p">,</span> <span class="n">fundoFloat</span><span class="p">;</span>
+  <span class="n">image</span><span class="p">.</span><span class="n">convertTo</span><span class="p">(</span><span class="n">imgFloat</span><span class="p">,</span> <span class="n">CV_32F</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">GaussianBlur</span><span class="p">(</span><span class="n">imgFloat</span><span class="p">,</span> <span class="n">fundoFloat</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">Size</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">sigma</span><span class="p">);</span>
+
+  <span class="c1">// 3. Correcao de iluminacao (modelo multiplicativo: refletancia ~ original / fundo)</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">corrigidaFloat</span> <span class="o">=</span> <span class="p">(</span><span class="n">imgFloat</span> <span class="o">+</span> <span class="mf">1.0f</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">fundoFloat</span> <span class="o">+</span> <span class="mf">1.0f</span><span class="p">);</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">fundoVis</span><span class="p">,</span> <span class="n">corrigida</span><span class="p">;</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">normalize</span><span class="p">(</span><span class="n">fundoFloat</span><span class="p">,</span> <span class="n">fundoVis</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">NORM_MINMAX</span><span class="p">);</span>
+  <span class="n">fundoVis</span><span class="p">.</span><span class="n">convertTo</span><span class="p">(</span><span class="n">fundoVis</span><span class="p">,</span> <span class="n">CV_8U</span><span class="p">);</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">normalize</span><span class="p">(</span><span class="n">corrigidaFloat</span><span class="p">,</span> <span class="n">corrigida</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">NORM_MINMAX</span><span class="p">);</span>
+  <span class="n">corrigida</span><span class="p">.</span><span class="n">convertTo</span><span class="p">(</span><span class="n">corrigida</span><span class="p">,</span> <span class="n">CV_8U</span><span class="p">);</span>
+
+  <span class="c1">// 4. Limiarizacao de Otsu sobre a imagem com iluminacao corrigida</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">otsuCorrigido</span><span class="p">;</span>
+  <span class="kt">double</span> <span class="n">limiarCorrigido</span> <span class="o">=</span> <span class="n">cv</span><span class="o">::</span><span class="n">threshold</span><span class="p">(</span>
+      <span class="n">corrigida</span><span class="p">,</span> <span class="n">otsuCorrigido</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">THRESH_BINARY</span> <span class="o">|</span> <span class="n">cv</span><span class="o">::</span><span class="n">THRESH_OTSU</span><span class="p">);</span>
+
+  <span class="c1">// Salva todas as etapas automaticamente</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">outDireto</span> <span class="o">=</span> <span class="s">"resultado_otsu_"</span> <span class="o">+</span> <span class="n">base</span> <span class="o">+</span> <span class="s">".png"</span><span class="p">;</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">outFundo</span> <span class="o">=</span> <span class="s">"resultado_gaussiano_"</span> <span class="o">+</span> <span class="n">base</span> <span class="o">+</span> <span class="s">".png"</span><span class="p">;</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">outCorrigida</span> <span class="o">=</span> <span class="s">"resultado_corrigida_"</span> <span class="o">+</span> <span class="n">base</span> <span class="o">+</span> <span class="s">".png"</span><span class="p">;</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">outOtsuCorr</span> <span class="o">=</span> <span class="s">"resultado_otsu_corrigido_"</span> <span class="o">+</span> <span class="n">base</span> <span class="o">+</span> <span class="s">".png"</span><span class="p">;</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">imwrite</span><span class="p">(</span><span class="n">outDireto</span><span class="p">,</span> <span class="n">otsuDireto</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">imwrite</span><span class="p">(</span><span class="n">outFundo</span><span class="p">,</span> <span class="n">fundoVis</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">imwrite</span><span class="p">(</span><span class="n">outCorrigida</span><span class="p">,</span> <span class="n">corrigida</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">imwrite</span><span class="p">(</span><span class="n">outOtsuCorr</span><span class="p">,</span> <span class="n">otsuCorrigido</span><span class="p">);</span>
+
+  <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Imagem: "</span> <span class="o">&lt;&lt;</span> <span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;&lt;</span> <span class="s">" (sigma = "</span> <span class="o">&lt;&lt;</span> <span class="n">sigma</span> <span class="o">&lt;&lt;</span> <span class="s">")</span><span class="se">\n</span><span class="s">"</span>
+            <span class="o">&lt;&lt;</span> <span class="s">"  Limiar Otsu direto:    "</span> <span class="o">&lt;&lt;</span> <span class="n">limiarDireto</span> <span class="o">&lt;&lt;</span> <span class="s">" -&gt; "</span> <span class="o">&lt;&lt;</span> <span class="n">outDireto</span> <span class="o">&lt;&lt;</span> <span class="s">"</span><span class="se">\n</span><span class="s">"</span>
+            <span class="o">&lt;&lt;</span> <span class="s">"  Fundo estimado:        "</span> <span class="o">&lt;&lt;</span> <span class="n">outFundo</span> <span class="o">&lt;&lt;</span> <span class="s">"</span><span class="se">\n</span><span class="s">"</span>
+            <span class="o">&lt;&lt;</span> <span class="s">"  Iluminacao corrigida:  "</span> <span class="o">&lt;&lt;</span> <span class="n">outCorrigida</span> <span class="o">&lt;&lt;</span> <span class="s">"</span><span class="se">\n</span><span class="s">"</span>
+            <span class="o">&lt;&lt;</span> <span class="s">"  Limiar Otsu corrigido: "</span> <span class="o">&lt;&lt;</span> <span class="n">limiarCorrigido</span> <span class="o">&lt;&lt;</span> <span class="s">" -&gt; "</span> <span class="o">&lt;&lt;</span> <span class="n">outOtsuCorr</span>
+            <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">imshow</span><span class="p">(</span><span class="s">"Original"</span><span class="p">,</span> <span class="n">image</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">imshow</span><span class="p">(</span><span class="s">"Otsu Direto"</span><span class="p">,</span> <span class="n">otsuDireto</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">imshow</span><span class="p">(</span><span class="s">"Iluminacao Corrigida"</span><span class="p">,</span> <span class="n">corrigida</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">imshow</span><span class="p">(</span><span class="s">"Otsu Corrigido"</span><span class="p">,</span> <span class="n">otsuCorrigido</span><span class="p">);</span>
+
+  <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Pressione qualquer tecla na janela para fechar."</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">waitKey</span><span class="p">();</span>
+
+  <span class="k">return</span> <span class="n">EXIT_SUCCESS</span><span class="p">;</span>
+<span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="imageblock thumb">
+<div class="content">
+<img src="./capitulo_18/sementes2.png" alt="Sementes 2 Original" width="320">
+</div>
+<div class="title">Figura 51. Imagem original sementes2.png com iluminação irregular</div>
+</div>
+<div class="imageblock thumb">
+<div class="content">
+<img src="./capitulo_18/resultado_otsu_sementes2.png" alt="Otsu Direto Sementes 2" width="320">
+</div>
+<div class="title">Figura 52. Resultado da limiarização de Otsu direta (limiar = 107) comprometida pelo gradiente de iluminação</div>
+</div>
+<div class="imageblock thumb">
+<div class="content">
+<img src="./capitulo_18/resultado_gaussiano_sementes2.png" alt="Fundo Gaussiano Sementes 2" width="320">
+</div>
+<div class="title">Figura 53. Estimativa da iluminação de fundo obtida com filtro gaussiano (sigma = 35)</div>
+</div>
+<div class="imageblock thumb">
+<div class="content">
+<img src="./capitulo_18/resultado_corrigida_sementes2.png" alt="Iluminação Corrigida Sementes 2" width="320">
+</div>
+<div class="title">Figura 54. Imagem após a correção de iluminação por divisão pelo fundo estimado</div>
+</div>
+<div class="imageblock thumb">
+<div class="content">
+<img src="./capitulo_18/resultado_otsu_corrigido_sementes2.png" alt="Otsu Corrigido Sementes 2" width="320">
+</div>
+<div class="title">Figura 55. Resultado final da limiarização de Otsu após a correção (limiar = 110)</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_capítulo_19_detecção_de_bordas_com_o_algoritmo_de_canny_pontilhismo">19. Capítulo 19: Detecção de Bordas com o Algoritmo de Canny (Pontilhismo)</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Neste capítulo, implementei o programa <code>cannypoints.cpp</code> combinando o detector de bordas de Canny com a técnica artística de pontilhismo sobre a imagem colorida <code>noturno_icon.jpg</code> (\$720 \times 887\$ pixels). Para preservar as cores originais da ilustração na pintura final, o detector de Canny foi executado sobre uma cópia em tons de cinza (<code>cv::COLOR_BGR2GRAY</code>), enquanto os círculos foram desenhados utilizando a cor BGR amostrada diretamente da imagem original.</p>
+</div>
+<div class="paragraph">
+<p>O procedimento foi dividido em duas etapas principais:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><strong>Camada base (pontilhismo tradicional):</strong> Percorri a imagem com passo <code>STEP = 5</code> e deslocamento aleatório <code>JITTER = 3</code>, embaralhando tanto os índices das linhas quanto os das colunas (<code>std::shuffle</code>) para evitar alinhamentos artificiais. Em cada posição amostrada, desenhei círculos preenchidos maiores (<code>RAIO = 5</code>) com <strong>antialiasing</strong> (<code>cv::LINE_AA</code>), formando a textura pontilhista de fundo.</p>
+</li>
+<li>
+<p><strong>Refinamento progressivo com bordas de Canny:</strong> Executei o algoritmo de Canny em quatro passagens com limiares crescentes, mantendo a proporção recomendada \$T_2 = 3 \cdot T_1\$. Em cada passagem, coletei todos os pixels de borda detectados, embaralhei a ordem de desenho para evitar sobreposições direcionais e tracei círculos progressivamente menores com a cor do pixel correspondente:</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Limiares <code>(20, 60)</code> — <code>28.206</code> pontos de borda desenhados com raio <code>4</code>;</p>
+</li>
+<li>
+<p>Limiares <code>(50, 150)</code> — <code>10.512</code> pontos de borda desenhados com raio <code>3</code>;</p>
+</li>
+<li>
+<p>Limiares <code>(90, 270)</code> — <code>3.202</code> pontos de borda desenhados com raio <code>2</code>;</p>
+</li>
+<li>
+<p>Limiares <code>(140, 420)</code> — <code>972</code> pontos de borda desenhados com raio <code>1</code>.</p>
+</li>
+</ul>
+</div>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Dessa forma, as regiões uniformes mantiveram os pontos mais largos do pontilhismo inicial, enquanto as transições suaves receberam acabamento intermediário e os contornos mais fortes (como o rosto, o olho brilhante, os fios de cabelo e a gola) ganharam alta definição com círculos de raio reduzido.</p>
+</div>
+<div class="listingblock">
+<div class="title">Listagem 27. cannypoints.cpp</div>
+<div class="content">
+<pre class="rouge highlight"><code data-lang="cpp"><span class="cp">#include</span> <span class="cpf">&lt;algorithm&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;chrono&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;cstdlib&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;iostream&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;numeric&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;opencv2/opencv.hpp&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;random&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;vector&gt;</span><span class="cp">
+</span>
+<span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">**</span> <span class="n">argv</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">argc</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Uso: "</span> <span class="o">&lt;&lt;</span> <span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;&lt;</span> <span class="s">" &lt;imagem&gt;"</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+    <span class="k">return</span> <span class="n">EXIT_FAILURE</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">image</span> <span class="o">=</span> <span class="n">cv</span><span class="o">::</span><span class="n">imread</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">cv</span><span class="o">::</span><span class="n">IMREAD_COLOR</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">image</span><span class="p">.</span><span class="n">empty</span><span class="p">())</span> <span class="p">{</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Nao foi possivel abrir a imagem: "</span> <span class="o">&lt;&lt;</span> <span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+    <span class="k">return</span> <span class="n">EXIT_FAILURE</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="kt">int</span> <span class="n">width</span> <span class="o">=</span> <span class="n">image</span><span class="p">.</span><span class="n">cols</span><span class="p">;</span>
+  <span class="kt">int</span> <span class="n">height</span> <span class="o">=</span> <span class="n">image</span><span class="p">.</span><span class="n">rows</span><span class="p">;</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Imagem carregada: "</span> <span class="o">&lt;&lt;</span> <span class="n">width</span> <span class="o">&lt;&lt;</span> <span class="s">"x"</span> <span class="o">&lt;&lt;</span> <span class="n">height</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+
+  <span class="c1">// Versao em tons de cinza para o detector de bordas de Canny</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">gray</span><span class="p">;</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">gray</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">COLOR_BGR2GRAY</span><span class="p">);</span>
+
+  <span class="c1">// Gerador aleatorio moderno (para embaralhamento e jitter)</span>
+  <span class="kt">unsigned</span> <span class="n">seed</span> <span class="o">=</span> <span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">unsigned</span><span class="o">&gt;</span><span class="p">(</span>
+      <span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">system_clock</span><span class="o">::</span><span class="n">now</span><span class="p">().</span><span class="n">time_since_epoch</span><span class="p">().</span><span class="n">count</span><span class="p">());</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">mt19937</span> <span class="nf">rng</span><span class="p">(</span><span class="n">seed</span><span class="p">);</span>
+
+  <span class="c1">// ETAPA 1: Pontilhismo basico com pontos maiores (camada de fundo)</span>
+
+  <span class="k">const</span> <span class="kt">int</span> <span class="n">STEP</span> <span class="o">=</span> <span class="mi">5</span><span class="p">;</span>
+  <span class="k">const</span> <span class="kt">int</span> <span class="n">JITTER</span> <span class="o">=</span> <span class="mi">3</span><span class="p">;</span>
+  <span class="k">const</span> <span class="kt">int</span> <span class="n">BASE_RADIUS</span> <span class="o">=</span> <span class="mi">5</span><span class="p">;</span>
+
+  <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span> <span class="n">rowRange</span><span class="p">(</span><span class="n">height</span> <span class="o">/</span> <span class="n">STEP</span><span class="p">);</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span> <span class="n">colRange</span><span class="p">(</span><span class="n">width</span> <span class="o">/</span> <span class="n">STEP</span><span class="p">);</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">iota</span><span class="p">(</span><span class="n">rowRange</span><span class="p">.</span><span class="n">begin</span><span class="p">(),</span> <span class="n">rowRange</span><span class="p">.</span><span class="n">end</span><span class="p">(),</span> <span class="mi">0</span><span class="p">);</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">iota</span><span class="p">(</span><span class="n">colRange</span><span class="p">.</span><span class="n">begin</span><span class="p">(),</span> <span class="n">colRange</span><span class="p">.</span><span class="n">end</span><span class="p">(),</span> <span class="mi">0</span><span class="p">);</span>
+
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span><span class="o">&amp;</span> <span class="n">r</span> <span class="o">:</span> <span class="n">rowRange</span><span class="p">)</span> <span class="n">r</span> <span class="o">=</span> <span class="n">r</span> <span class="o">*</span> <span class="n">STEP</span> <span class="o">+</span> <span class="n">STEP</span> <span class="o">/</span> <span class="mi">2</span><span class="p">;</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span><span class="o">&amp;</span> <span class="n">c</span> <span class="o">:</span> <span class="n">colRange</span><span class="p">)</span> <span class="n">c</span> <span class="o">=</span> <span class="n">c</span> <span class="o">*</span> <span class="n">STEP</span> <span class="o">+</span> <span class="n">STEP</span> <span class="o">/</span> <span class="mi">2</span><span class="p">;</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="nf">points</span><span class="p">(</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">CV_8UC3</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">Scalar</span><span class="p">(</span><span class="mi">255</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="mi">255</span><span class="p">));</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">uniform_int_distribution</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span> <span class="n">jitterDist</span><span class="p">(</span><span class="o">-</span><span class="n">JITTER</span><span class="p">,</span> <span class="n">JITTER</span><span class="p">);</span>
+
+  <span class="n">std</span><span class="o">::</span><span class="n">shuffle</span><span class="p">(</span><span class="n">rowRange</span><span class="p">.</span><span class="n">begin</span><span class="p">(),</span> <span class="n">rowRange</span><span class="p">.</span><span class="n">end</span><span class="p">(),</span> <span class="n">rng</span><span class="p">);</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">r</span> <span class="o">:</span> <span class="n">rowRange</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">shuffle</span><span class="p">(</span><span class="n">colRange</span><span class="p">.</span><span class="n">begin</span><span class="p">(),</span> <span class="n">colRange</span><span class="p">.</span><span class="n">end</span><span class="p">(),</span> <span class="n">rng</span><span class="p">);</span>
+    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">c</span> <span class="o">:</span> <span class="n">colRange</span><span class="p">)</span> <span class="p">{</span>
+      <span class="kt">int</span> <span class="n">sr</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">clamp</span><span class="p">(</span><span class="n">r</span> <span class="o">+</span> <span class="n">jitterDist</span><span class="p">(</span><span class="n">rng</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="n">height</span> <span class="o">-</span> <span class="mi">1</span><span class="p">);</span>
+      <span class="kt">int</span> <span class="n">sc</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">clamp</span><span class="p">(</span><span class="n">c</span> <span class="o">+</span> <span class="n">jitterDist</span><span class="p">(</span><span class="n">rng</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="n">width</span> <span class="o">-</span> <span class="mi">1</span><span class="p">);</span>
+
+      <span class="n">cv</span><span class="o">::</span><span class="n">Vec3b</span> <span class="n">bgr</span> <span class="o">=</span> <span class="n">image</span><span class="p">.</span><span class="n">at</span><span class="o">&lt;</span><span class="n">cv</span><span class="o">::</span><span class="n">Vec3b</span><span class="o">&gt;</span><span class="p">(</span><span class="n">sr</span><span class="p">,</span> <span class="n">sc</span><span class="p">);</span>
+      <span class="n">cv</span><span class="o">::</span><span class="n">circle</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">Point</span><span class="p">(</span><span class="n">sc</span><span class="p">,</span> <span class="n">sr</span><span class="p">),</span> <span class="n">BASE_RADIUS</span><span class="p">,</span>
+                 <span class="n">cv</span><span class="o">::</span><span class="n">Scalar</span><span class="p">(</span><span class="n">bgr</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">bgr</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">bgr</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span> <span class="n">cv</span><span class="o">::</span><span class="n">FILLED</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">LINE_AA</span><span class="p">);</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+
+  <span class="c1">// Salva o pontilhismo basico para comparacao antes/depois no relatorio</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">basePoints</span> <span class="o">=</span> <span class="n">points</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">imwrite</span><span class="p">(</span><span class="s">"resultado_pontilhismo_base.png"</span><span class="p">,</span> <span class="n">basePoints</span><span class="p">);</span>
+
+  <span class="c1">// ETAPA 2: Refinamento iterativo usando bordas de Canny</span>
+  <span class="c1">// Limiares crescentes -&gt; circulos progressivamente menores</span>
+  
+  <span class="k">struct</span> <span class="nc">CannyPass</span> <span class="p">{</span>
+    <span class="kt">int</span> <span class="n">lowThreshold</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">radius</span><span class="p">;</span>
+  <span class="p">};</span>
+
+  <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">CannyPass</span><span class="o">&gt;</span> <span class="n">passes</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="p">{</span><span class="mi">20</span><span class="p">,</span> <span class="mi">4</span><span class="p">},</span>
+      <span class="p">{</span><span class="mi">50</span><span class="p">,</span> <span class="mi">3</span><span class="p">},</span>
+      <span class="p">{</span><span class="mi">90</span><span class="p">,</span> <span class="mi">2</span><span class="p">},</span>
+      <span class="p">{</span><span class="mi">140</span><span class="p">,</span> <span class="mi">1</span><span class="p">},</span>
+  <span class="p">};</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">border</span><span class="p">,</span> <span class="n">borderExemplo</span><span class="p">;</span>
+
+  <span class="k">for</span> <span class="p">(</span><span class="k">const</span> <span class="k">auto</span><span class="o">&amp;</span> <span class="n">pass</span> <span class="o">:</span> <span class="n">passes</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">cv</span><span class="o">::</span><span class="n">Canny</span><span class="p">(</span><span class="n">gray</span><span class="p">,</span> <span class="n">border</span><span class="p">,</span> <span class="n">pass</span><span class="p">.</span><span class="n">lowThreshold</span><span class="p">,</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">pass</span><span class="p">.</span><span class="n">lowThreshold</span><span class="p">);</span>
+
+    <span class="c1">// Guarda um mapa de bordas representativo (limiar 50 / 150) para o relatorio</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">pass</span><span class="p">.</span><span class="n">lowThreshold</span> <span class="o">==</span> <span class="mi">50</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">borderExemplo</span> <span class="o">=</span> <span class="n">border</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span>
+    <span class="p">}</span>
+
+    <span class="c1">// Coleta todas as coordenadas dos pixels de borda</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">cv</span><span class="o">::</span><span class="n">Point</span><span class="o">&gt;</span> <span class="n">edgePoints</span><span class="p">;</span>
+    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">r</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">r</span> <span class="o">&lt;</span> <span class="n">height</span><span class="p">;</span> <span class="n">r</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">const</span> <span class="n">uchar</span><span class="o">*</span> <span class="n">rowPtr</span> <span class="o">=</span> <span class="n">border</span><span class="p">.</span><span class="n">ptr</span><span class="o">&lt;</span><span class="n">uchar</span><span class="o">&gt;</span><span class="p">(</span><span class="n">r</span><span class="p">);</span>
+      <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">c</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">c</span> <span class="o">&lt;</span> <span class="n">width</span><span class="p">;</span> <span class="n">c</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">rowPtr</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+          <span class="n">edgePoints</span><span class="p">.</span><span class="n">emplace_back</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">r</span><span class="p">);</span>  <span class="c1">// Point(x=col, y=row)</span>
+        <span class="p">}</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="c1">// Embaralha a ordem de desenho para evitar sobreposicao direcional</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">shuffle</span><span class="p">(</span><span class="n">edgePoints</span><span class="p">.</span><span class="n">begin</span><span class="p">(),</span> <span class="n">edgePoints</span><span class="p">.</span><span class="n">end</span><span class="p">(),</span> <span class="n">rng</span><span class="p">);</span>
+
+    <span class="k">for</span> <span class="p">(</span><span class="k">const</span> <span class="k">auto</span><span class="o">&amp;</span> <span class="n">pt</span> <span class="o">:</span> <span class="n">edgePoints</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">cv</span><span class="o">::</span><span class="n">Vec3b</span> <span class="n">bgr</span> <span class="o">=</span> <span class="n">image</span><span class="p">.</span><span class="n">at</span><span class="o">&lt;</span><span class="n">cv</span><span class="o">::</span><span class="n">Vec3b</span><span class="o">&gt;</span><span class="p">(</span><span class="n">pt</span><span class="p">.</span><span class="n">y</span><span class="p">,</span> <span class="n">pt</span><span class="p">.</span><span class="n">x</span><span class="p">);</span>
+      <span class="n">cv</span><span class="o">::</span><span class="n">circle</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">pt</span><span class="p">,</span> <span class="n">pass</span><span class="p">.</span><span class="n">radius</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">Scalar</span><span class="p">(</span><span class="n">bgr</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">bgr</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">bgr</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span>
+                 <span class="n">cv</span><span class="o">::</span><span class="n">FILLED</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">LINE_AA</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Canny ("</span> <span class="o">&lt;&lt;</span> <span class="n">pass</span><span class="p">.</span><span class="n">lowThreshold</span> <span class="o">&lt;&lt;</span> <span class="s">", "</span> <span class="o">&lt;&lt;</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">pass</span><span class="p">.</span><span class="n">lowThreshold</span>
+              <span class="o">&lt;&lt;</span> <span class="s">") -&gt; "</span> <span class="o">&lt;&lt;</span> <span class="n">edgePoints</span><span class="p">.</span><span class="n">size</span><span class="p">()</span>
+              <span class="o">&lt;&lt;</span> <span class="s">" pontos de borda desenhados com raio "</span> <span class="o">&lt;&lt;</span> <span class="n">pass</span><span class="p">.</span><span class="n">radius</span>
+              <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">imwrite</span><span class="p">(</span><span class="s">"resultado_canny_bordas.png"</span><span class="p">,</span> <span class="n">borderExemplo</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">imwrite</span><span class="p">(</span><span class="s">"resultado_cannypoints.png"</span><span class="p">,</span> <span class="n">points</span><span class="p">);</span>
+
+  <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"</span><span class="se">\n</span><span class="s">Imagens salvas em capitulo_19/:</span><span class="se">\n</span><span class="s">"</span>
+            <span class="o">&lt;&lt;</span> <span class="s">"  - resultado_pontilhismo_base.png</span><span class="se">\n</span><span class="s">"</span>
+            <span class="o">&lt;&lt;</span> <span class="s">"  - resultado_canny_bordas.png</span><span class="se">\n</span><span class="s">"</span>
+            <span class="o">&lt;&lt;</span> <span class="s">"  - resultado_cannypoints.png</span><span class="se">\n</span><span class="s">"</span>
+            <span class="o">&lt;&lt;</span> <span class="s">"Pressione qualquer tecla na janela para fechar."</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">imshow</span><span class="p">(</span><span class="s">"Original"</span><span class="p">,</span> <span class="n">image</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">imshow</span><span class="p">(</span><span class="s">"Pontilhismo Base"</span><span class="p">,</span> <span class="n">basePoints</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">imshow</span><span class="p">(</span><span class="s">"Bordas Canny (50/150)"</span><span class="p">,</span> <span class="n">borderExemplo</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">imshow</span><span class="p">(</span><span class="s">"CannyPoints Final"</span><span class="p">,</span> <span class="n">points</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">waitKey</span><span class="p">();</span>
+
+  <span class="k">return</span> <span class="n">EXIT_SUCCESS</span><span class="p">;</span>
+<span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="imageblock thumb">
+<div class="content">
+<img src="./capitulo_19/noturno_icon.jpg" alt="Noturno Original" width="320">
+</div>
+<div class="title">Figura 56. Imagem original noturno_icon.jpg utilizada como referência</div>
+</div>
+<div class="imageblock thumb">
+<div class="content">
+<img src="./capitulo_19/resultado_pontilhismo_base.png" alt="Pontilhismo Base" width="320">
+</div>
+<div class="title">Figura 57. Etapa 1: Pontilhismo básico sem refinamento de bordas (STEP = 5, RAIO = 5)</div>
+</div>
+<div class="imageblock thumb">
+<div class="content">
+<img src="./capitulo_19/resultado_canny_bordas.png" alt="Bordas Canny" width="320">
+</div>
+<div class="title">Figura 58. Mapa de bordas intermediário detectado por Canny (limiares 50 e 150)</div>
+</div>
+<div class="imageblock thumb">
+<div class="content">
+<img src="./capitulo_19/resultado_cannypoints.png" alt="CannyPoints Final" width="320">
+</div>
+<div class="title">Figura 59. Resultado final do CannyPoints após as quatro passagens progressivas de refinamento</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_capítulo_20_quantização_vetorial_com_k_means">20. Capítulo 20: Quantização Vetorial com k-means</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Neste capítulo, adaptei o programa <code>kmeans.cpp</code> para executar a quantização vetorial de cores sobre <code>noturno_icon.jpg</code> utilizando \$k = 8\$ <strong>clusters</strong>, com <code>nRodadas = 1</code> e inicialização puramente aleatória dos centróides (<code>cv::KMEANS_RANDOM_CENTERS</code>) em vez de <code>cv::KMEANS_PP_CENTERS</code>. O programa foi configurado para realizar 10 rodadas independentes, medindo a compacidade (soma dos quadrados das distâncias dos pixels aos seus respectivos centróides) de cada execução e montando uma grade comparativa com os 10 resultados.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<caption class="title">Tabela 1. Compacidade obtida em cada uma das 10 rodadas (k = 8, nRodadas = 1, KMEANS_RANDOM_CENTERS)</caption>
+<colgroup>
+<col style="width: 20%;">
+<col style="width: 40%;">
+<col style="width: 40%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-center valign-top">Rodada</th>
+<th class="tableblock halign-center valign-top">Compacidade (\$\times 10^6\$)</th>
+<th class="tableblock halign-center valign-top">Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-center valign-top"><p class="tableblock">01</p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock">292,79</p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock">Melhor compacidade (menor erro)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-center valign-top"><p class="tableblock">02</p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock">292,79</p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock">Empate no melhor mínimo local</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-center valign-top"><p class="tableblock">03</p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock">346,80</p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock">Mínimo local intermediário</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-center valign-top"><p class="tableblock">04</p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock">365,46</p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock">Pior compacidade (maior erro)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-center valign-top"><p class="tableblock">05</p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock">365,46</p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock">Empate no pior mínimo local</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-center valign-top"><p class="tableblock">06</p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock">292,79</p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock">Empate no melhor mínimo local</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-center valign-top"><p class="tableblock">07</p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock">334,31</p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock">Mínimo local intermediário</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-center valign-top"><p class="tableblock">08</p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock">334,39</p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock">Mínimo local intermediário</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-center valign-top"><p class="tableblock">09</p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock">346,82</p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock">Mínimo local intermediário</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-center valign-top"><p class="tableblock">10</p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock">346,82</p></td>
+<td class="tableblock halign-center valign-top"><p class="tableblock">Mínimo local intermediário</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><strong>Por que as imagens produzidas podem diferir tanto entre as rodadas?</strong></p>
+</div>
+<div class="paragraph">
+<p>O algoritmo <strong>k</strong>-means é um método iterativo guloso que busca minimizar a soma das distâncias quadráticas de cada amostra ao centróide da sua classe, mas garante convergência apenas para um <strong>mínimo local</strong> — que depende diretamente das posições escolhidas para os centros iniciais.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Inicialização aleatória (<code>KMEANS_RANDOM_CENTERS</code>):</strong> Diferentemente do <code>KMEANS_PP_CENTERS</code> (<strong>k</strong>-means++), que distribui os centróides iniciais de forma probabilística para cobrir melhor todo o espaço de cores, a inicialização aleatória sorteia os \$k\$ centros sem critério de espalhamento. Se vários centros caírem inicialmente em regiões muito densas (como tons escuros ou azuis) e nenhum cair próximo a cores minoritárias ou transições específicas, o algoritmo pode ficar preso em um particionamento subótimo, fundindo regiões distintas sob o mesmo centróide e alterando significativamente a paleta final.</p>
+</li>
+<li>
+<p><strong>Execução única (<code>nRodadas = 1</code>):</strong> Com <code>nRodadas &gt; 1</code>, o OpenCV executa o algoritmo várias vezes e descarta os piores resultados, mantendo apenas a rodada de menor compacidade. Ao fixar <code>nRodadas = 1</code>, cada execução fica restrita ao mínimo local alcançado a partir daquele único sorteio. Nos testes, isso ficou evidente nos quatro platôs distintos de compacidade observados, com uma variação de cerca de 24,8% entre a melhor rodada (<code>292,79e6</code>, Rodada 01) e a pior (<code>365,46e6</code>, Rodada 04).</p>
+</li>
+</ul>
+</div>
+<div class="listingblock">
+<div class="title">Listagem 28. kmeans.cpp</div>
+<div class="content">
+<pre class="rouge highlight"><code data-lang="cpp"><span class="cp">#include</span> <span class="cpf">&lt;chrono&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;cstdlib&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;iomanip&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;iostream&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;limits&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;opencv2/opencv.hpp&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;sstream&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;string&gt;</span><span class="cp">
+#include</span> <span class="cpf">&lt;vector&gt;</span><span class="cp">
+</span>
+<span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">**</span> <span class="n">argv</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">argc</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Uso: "</span> <span class="o">&lt;&lt;</span> <span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;&lt;</span> <span class="s">" &lt;imagem&gt; [nClusters]"</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+    <span class="k">return</span> <span class="n">EXIT_FAILURE</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">img</span> <span class="o">=</span> <span class="n">cv</span><span class="o">::</span><span class="n">imread</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">cv</span><span class="o">::</span><span class="n">IMREAD_COLOR</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">img</span><span class="p">.</span><span class="n">empty</span><span class="p">())</span> <span class="p">{</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Erro abrindo imagem: "</span> <span class="o">&lt;&lt;</span> <span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+    <span class="k">return</span> <span class="n">EXIT_FAILURE</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="k">const</span> <span class="kt">int</span> <span class="n">nClusters</span> <span class="o">=</span> <span class="p">(</span><span class="n">argc</span> <span class="o">&gt;=</span> <span class="mi">3</span><span class="p">)</span> <span class="o">?</span> <span class="n">std</span><span class="o">::</span><span class="n">stoi</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span> <span class="o">:</span> <span class="mi">8</span><span class="p">;</span>
+  <span class="k">const</span> <span class="kt">int</span> <span class="n">nRodadas</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+  <span class="k">const</span> <span class="kt">int</span> <span class="n">totalExecucoes</span> <span class="o">=</span> <span class="mi">10</span><span class="p">;</span>
+
+  <span class="c1">// Inicializa o gerador interno do OpenCV com o relogio atual</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">theRNG</span><span class="p">().</span><span class="n">state</span> <span class="o">=</span> <span class="k">static_cast</span><span class="o">&lt;</span><span class="n">uint64</span><span class="o">&gt;</span><span class="p">(</span>
+      <span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">system_clock</span><span class="o">::</span><span class="n">now</span><span class="p">().</span><span class="n">time_since_epoch</span><span class="p">().</span><span class="n">count</span><span class="p">());</span>
+
+  <span class="c1">// Monta a matriz de amostras (1 linha por pixel, 3 colunas para B, G, R)</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="nf">samples</span><span class="p">(</span><span class="n">img</span><span class="p">.</span><span class="n">rows</span> <span class="o">*</span> <span class="n">img</span><span class="p">.</span><span class="n">cols</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">CV_32F</span><span class="p">);</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">y</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">y</span> <span class="o">&lt;</span> <span class="n">img</span><span class="p">.</span><span class="n">rows</span><span class="p">;</span> <span class="n">y</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">x</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="n">img</span><span class="p">.</span><span class="n">cols</span><span class="p">;</span> <span class="n">x</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">z</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">z</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">;</span> <span class="n">z</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">samples</span><span class="p">.</span><span class="n">at</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="n">x</span> <span class="o">*</span> <span class="n">img</span><span class="p">.</span><span class="n">rows</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span> <span class="o">=</span> <span class="n">img</span><span class="p">.</span><span class="n">at</span><span class="o">&lt;</span><span class="n">cv</span><span class="o">::</span><span class="n">Vec3b</span><span class="o">&gt;</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">)[</span><span class="n">z</span><span class="p">];</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+
+  <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">cv</span><span class="o">::</span><span class="n">Mat</span><span class="o">&gt;</span> <span class="n">miniaturas</span><span class="p">;</span>
+  <span class="k">const</span> <span class="kt">int</span> <span class="n">tileW</span> <span class="o">=</span> <span class="mi">240</span><span class="p">;</span>
+  <span class="k">const</span> <span class="kt">int</span> <span class="n">tileH</span> <span class="o">=</span> <span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">tileW</span> <span class="o">*</span> <span class="p">(</span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">(</span><span class="n">img</span><span class="p">.</span><span class="n">rows</span><span class="p">)</span> <span class="o">/</span> <span class="n">img</span><span class="p">.</span><span class="n">cols</span><span class="p">));</span>
+  <span class="k">const</span> <span class="kt">int</span> <span class="n">headerH</span> <span class="o">=</span> <span class="mi">28</span><span class="p">;</span>
+
+  <span class="kt">int</span> <span class="n">melhorRodada</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">piorRodada</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+  <span class="kt">double</span> <span class="n">menorCompacidade</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">numeric_limits</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;::</span><span class="n">max</span><span class="p">();</span>
+  <span class="kt">double</span> <span class="n">maiorCompacidade</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">;</span>
+
+  <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Executando "</span> <span class="o">&lt;&lt;</span> <span class="n">totalExecucoes</span> <span class="o">&lt;&lt;</span> <span class="s">" rodadas de k-means (k="</span>
+            <span class="o">&lt;&lt;</span> <span class="n">nClusters</span> <span class="o">&lt;&lt;</span> <span class="s">", nRodadas="</span> <span class="o">&lt;&lt;</span> <span class="n">nRodadas</span>
+            <span class="o">&lt;&lt;</span> <span class="s">", KMEANS_RANDOM_CENTERS)...</span><span class="se">\n\n</span><span class="s">"</span><span class="p">;</span>
+
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">r</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="n">r</span> <span class="o">&lt;=</span> <span class="n">totalExecucoes</span><span class="p">;</span> <span class="n">r</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">rotulos</span><span class="p">,</span> <span class="n">centros</span><span class="p">;</span>
+
+    <span class="kt">double</span> <span class="n">compacidade</span> <span class="o">=</span> <span class="n">cv</span><span class="o">::</span><span class="n">kmeans</span><span class="p">(</span>
+        <span class="n">samples</span><span class="p">,</span> <span class="n">nClusters</span><span class="p">,</span> <span class="n">rotulos</span><span class="p">,</span>
+        <span class="n">cv</span><span class="o">::</span><span class="n">TermCriteria</span><span class="p">(</span><span class="n">cv</span><span class="o">::</span><span class="n">TermCriteria</span><span class="o">::</span><span class="n">EPS</span> <span class="o">|</span> <span class="n">cv</span><span class="o">::</span><span class="n">TermCriteria</span><span class="o">::</span><span class="n">COUNT</span><span class="p">,</span> <span class="mi">10000</span><span class="p">,</span>
+                         <span class="mf">0.0001</span><span class="p">),</span>
+        <span class="n">nRodadas</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">KMEANS_RANDOM_CENTERS</span><span class="p">,</span> <span class="n">centros</span><span class="p">);</span>
+
+    <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">rotulada</span><span class="p">(</span><span class="n">img</span><span class="p">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">img</span><span class="p">.</span><span class="n">type</span><span class="p">());</span>
+    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">y</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">y</span> <span class="o">&lt;</span> <span class="n">img</span><span class="p">.</span><span class="n">rows</span><span class="p">;</span> <span class="n">y</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">x</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="n">img</span><span class="p">.</span><span class="n">cols</span><span class="p">;</span> <span class="n">x</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+        <span class="kt">int</span> <span class="n">indice</span> <span class="o">=</span> <span class="n">rotulos</span><span class="p">.</span><span class="n">at</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="n">x</span> <span class="o">*</span> <span class="n">img</span><span class="p">.</span><span class="n">rows</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+        <span class="n">rotulada</span><span class="p">.</span><span class="n">at</span><span class="o">&lt;</span><span class="n">cv</span><span class="o">::</span><span class="n">Vec3b</span><span class="o">&gt;</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span>
+            <span class="k">static_cast</span><span class="o">&lt;</span><span class="n">uchar</span><span class="o">&gt;</span><span class="p">(</span><span class="n">centros</span><span class="p">.</span><span class="n">at</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="p">(</span><span class="n">indice</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+        <span class="n">rotulada</span><span class="p">.</span><span class="n">at</span><span class="o">&lt;</span><span class="n">cv</span><span class="o">::</span><span class="n">Vec3b</span><span class="o">&gt;</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span>
+            <span class="k">static_cast</span><span class="o">&lt;</span><span class="n">uchar</span><span class="o">&gt;</span><span class="p">(</span><span class="n">centros</span><span class="p">.</span><span class="n">at</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="p">(</span><span class="n">indice</span><span class="p">,</span> <span class="mi">1</span><span class="p">));</span>
+        <span class="n">rotulada</span><span class="p">.</span><span class="n">at</span><span class="o">&lt;</span><span class="n">cv</span><span class="o">::</span><span class="n">Vec3b</span><span class="o">&gt;</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">)[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span>
+            <span class="k">static_cast</span><span class="o">&lt;</span><span class="n">uchar</span><span class="o">&gt;</span><span class="p">(</span><span class="n">centros</span><span class="p">.</span><span class="n">at</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="p">(</span><span class="n">indice</span><span class="p">,</span> <span class="mi">2</span><span class="p">));</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="n">std</span><span class="o">::</span><span class="n">ostringstream</span> <span class="n">ossNome</span><span class="p">;</span>
+    <span class="n">ossNome</span> <span class="o">&lt;&lt;</span> <span class="s">"resultado_kmeans_"</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">setw</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">setfill</span><span class="p">(</span><span class="sc">'0'</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="n">r</span>
+            <span class="o">&lt;&lt;</span> <span class="s">".png"</span><span class="p">;</span>
+    <span class="n">cv</span><span class="o">::</span><span class="n">imwrite</span><span class="p">(</span><span class="n">ossNome</span><span class="p">.</span><span class="n">str</span><span class="p">(),</span> <span class="n">rotulada</span><span class="p">);</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">compacidade</span> <span class="o">&lt;</span> <span class="n">menorCompacidade</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">menorCompacidade</span> <span class="o">=</span> <span class="n">compacidade</span><span class="p">;</span>
+      <span class="n">melhorRodada</span> <span class="o">=</span> <span class="n">r</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">compacidade</span> <span class="o">&gt;</span> <span class="n">maiorCompacidade</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">maiorCompacidade</span> <span class="o">=</span> <span class="n">compacidade</span><span class="p">;</span>
+      <span class="n">piorRodada</span> <span class="o">=</span> <span class="n">r</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"Rodada "</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">setw</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">setfill</span><span class="p">(</span><span class="sc">'0'</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="n">r</span>
+              <span class="o">&lt;&lt;</span> <span class="s">" -&gt; Compacidade: "</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">fixed</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">setprecision</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+              <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="n">compacidade</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="s">"e6  ("</span> <span class="o">&lt;&lt;</span> <span class="n">ossNome</span><span class="p">.</span><span class="n">str</span><span class="p">()</span> <span class="o">&lt;&lt;</span> <span class="s">")"</span>
+              <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+
+    <span class="c1">// Cria miniatura rotulada para o mosaico comparativo 2x5</span>
+    <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="nf">tile</span><span class="p">(</span><span class="n">tileH</span> <span class="o">+</span> <span class="n">headerH</span><span class="p">,</span> <span class="n">tileW</span><span class="p">,</span> <span class="n">CV_8UC3</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">Scalar</span><span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">30</span><span class="p">));</span>
+    <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">resized</span><span class="p">;</span>
+    <span class="n">cv</span><span class="o">::</span><span class="n">resize</span><span class="p">(</span><span class="n">rotulada</span><span class="p">,</span> <span class="n">resized</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">Size</span><span class="p">(</span><span class="n">tileW</span><span class="p">,</span> <span class="n">tileH</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">INTER_AREA</span><span class="p">);</span>
+    <span class="n">resized</span><span class="p">.</span><span class="n">copyTo</span><span class="p">(</span><span class="n">tile</span><span class="p">(</span><span class="n">cv</span><span class="o">::</span><span class="n">Rect</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">headerH</span><span class="p">,</span> <span class="n">tileW</span><span class="p">,</span> <span class="n">tileH</span><span class="p">)));</span>
+
+    <span class="n">std</span><span class="o">::</span><span class="n">ostringstream</span> <span class="n">ossLabel</span><span class="p">;</span>
+    <span class="n">ossLabel</span> <span class="o">&lt;&lt;</span> <span class="s">"Rodada "</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">setw</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">setfill</span><span class="p">(</span><span class="sc">'0'</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="n">r</span>
+             <span class="o">&lt;&lt;</span> <span class="s">" | C="</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">fixed</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">setprecision</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+             <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="n">compacidade</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="s">"M"</span><span class="p">;</span>
+    <span class="n">cv</span><span class="o">::</span><span class="n">putText</span><span class="p">(</span><span class="n">tile</span><span class="p">,</span> <span class="n">ossLabel</span><span class="p">.</span><span class="n">str</span><span class="p">(),</span> <span class="n">cv</span><span class="o">::</span><span class="n">Point</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span>
+                <span class="n">cv</span><span class="o">::</span><span class="n">FONT_HERSHEY_SIMPLEX</span><span class="p">,</span> <span class="mf">0.52</span><span class="p">,</span> <span class="n">cv</span><span class="o">::</span><span class="n">Scalar</span><span class="p">(</span><span class="mi">240</span><span class="p">,</span> <span class="mi">240</span><span class="p">,</span> <span class="mi">240</span><span class="p">),</span> <span class="mi">1</span><span class="p">,</span>
+                <span class="n">cv</span><span class="o">::</span><span class="n">LINE_AA</span><span class="p">);</span>
+    <span class="n">miniaturas</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">tile</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="c1">// Monta a grade 2x5 com todas as 10 rodadas</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">Mat</span> <span class="n">linha1</span><span class="p">,</span> <span class="n">linha2</span><span class="p">,</span> <span class="n">grade</span><span class="p">;</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">hconcat</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">cv</span><span class="o">::</span><span class="n">Mat</span><span class="o">&gt;</span><span class="p">(</span><span class="n">miniaturas</span><span class="p">.</span><span class="n">begin</span><span class="p">(),</span> <span class="n">miniaturas</span><span class="p">.</span><span class="n">begin</span><span class="p">()</span> <span class="o">+</span> <span class="mi">5</span><span class="p">),</span>
+              <span class="n">linha1</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">hconcat</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">cv</span><span class="o">::</span><span class="n">Mat</span><span class="o">&gt;</span><span class="p">(</span><span class="n">miniaturas</span><span class="p">.</span><span class="n">begin</span><span class="p">()</span> <span class="o">+</span> <span class="mi">5</span><span class="p">,</span> <span class="n">miniaturas</span><span class="p">.</span><span class="n">end</span><span class="p">()),</span>
+              <span class="n">linha2</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">vconcat</span><span class="p">(</span><span class="n">linha1</span><span class="p">,</span> <span class="n">linha2</span><span class="p">,</span> <span class="n">grade</span><span class="p">);</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">imwrite</span><span class="p">(</span><span class="s">"resultado_kmeans_grade.png"</span><span class="p">,</span> <span class="n">grade</span><span class="p">);</span>
+
+  <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"</span><span class="se">\n</span><span class="s">Resumo:</span><span class="se">\n</span><span class="s">"</span>
+            <span class="o">&lt;&lt;</span> <span class="s">"  Melhor rodada (menor compacidade): Rodada "</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">setw</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">setfill</span><span class="p">(</span><span class="sc">'0'</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="n">melhorRodada</span> <span class="o">&lt;&lt;</span> <span class="s">" ("</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">fixed</span>
+            <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">setprecision</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="n">menorCompacidade</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="s">"e6)</span><span class="se">\n</span><span class="s">"</span>
+            <span class="o">&lt;&lt;</span> <span class="s">"  Pior rodada   (maior compacidade): Rodada "</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">setw</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">setfill</span><span class="p">(</span><span class="sc">'0'</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="n">piorRodada</span> <span class="o">&lt;&lt;</span> <span class="s">" ("</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">fixed</span>
+            <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">setprecision</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="n">maiorCompacidade</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="s">"e6)</span><span class="se">\n</span><span class="s">"</span>
+            <span class="o">&lt;&lt;</span> <span class="s">"Grade comparativa salva em: resultado_kmeans_grade.png</span><span class="se">\n</span><span class="s">"</span>
+            <span class="o">&lt;&lt;</span> <span class="s">"Pressione qualquer tecla na janela para fechar."</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+
+  <span class="n">cv</span><span class="o">::</span><span class="n">imshow</span><span class="p">(</span><span class="s">"Comparacao 10 Rodadas - K-Means (RANDOM_CENTERS)"</span><span class="p">,</span> <span class="n">grade</span><span class="p">);</span>
+  <span class="n">cv</span><span class="o">::</span><span class="n">waitKey</span><span class="p">();</span>
+
+  <span class="k">return</span> <span class="n">EXIT_SUCCESS</span><span class="p">;</span>
+<span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="imageblock thumb">
+<div class="content">
+<img src="./capitulo_20/resultado_kmeans_grade.png" alt="Grade 10 Rodadas K-Means" width="700">
+</div>
+<div class="title">Figura 60. Comparação lado a lado das 10 rodadas independentes com KMEANS_RANDOM_CENTERS e nRodadas = 1</div>
+</div>
+<div class="imageblock thumb">
+<div class="content">
+<img src="./capitulo_20/resultado_kmeans_01.png" alt="K-Means Melhor Rodada" width="320">
+</div>
+<div class="title">Figura 61. Melhor rodada (Rodada 01 - Compacidade: 292,79e6)</div>
+</div>
+<div class="imageblock thumb">
+<div class="content">
+<img src="./capitulo_20/resultado_kmeans_04.png" alt="K-Means Pior Rodada" width="320">
+</div>
+<div class="title">Figura 62. Pior rodada (Rodada 04 - Compacidade: 365,46e6)</div>
+</div>
+</div>
+</div>
 </div>
 <div id="footer">
 <div id="footer-text">
-Última atualização 2026-10-14 00:15:57 -0300
+Última atualização 2026-11-24 04:21:14 -0300
 </div>
 </div>
 <script type="text/x-mathjax-config">

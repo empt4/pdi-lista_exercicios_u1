@@ -1,6 +1,6 @@
 # Processamento Digital de Imagens - Unidade 1 (DCA0445)
 
-Repositório com as resoluções dos exercícios práticos da Unidade 1 da disciplina DCA0445 (Processamento Digital de Imagens), ministrada pelo Prof. Agostinho Brito Jr.
+Repositório com as resoluções dos exercícios práticos da Unidades 1 e 2 da disciplina DCA0445 (Processamento Digital de Imagens), ministrada pelo Prof. Agostinho Brito Jr.
 
 **Aluno:** Eduardo Murilo Pinto Taborda (20220057376)
 
@@ -29,6 +29,11 @@ O relatório completo com os códigos-fonte, discussões, imagens e vídeos gera
 | `capitulo_13` | Registro de imagens e correção de perspectiva | `registro_interativo.cpp` |
 | `capitulo_14` | Filtragem espacial I (Convolução e Focus Stacking) | `convolucao2.cpp`, `depthoffield.cpp` |
 | `capitulo_15` | Filtragem espacial II (Tilt-Shift em imagem e vídeo) | `tiltshift.cpp`, `tiltshiftvideo.cpp` |
+| `capitulo_16` | Transformada Discreta de Fourier (DFT) | `filestorage.cpp`, `dft.cpp` |
+| `capitulo_17` | Filtragem no domínio da frequência (Filtro Homomórfico) | `homomorfico.cpp` |
+| `capitulo_18` | Limiarização (Otsu e correção de iluminação) | `threshold.cpp` |
+| `capitulo_19` | Detecção de bordas (Canny e Pontilhismo) | `cannypoints.cpp` |
+| `capitulo_20` | Quantização vetorial com k-means | `kmeans.cpp` |
 
 ## Compilação e Execução
 

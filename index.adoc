@@ -1,4 +1,4 @@
-= DCA0445: Processamento Digital de Imagens (Unidade 1)
+= DCA0445: Processamento Digital de Imagens (Unidades 1 e 2)
 Eduardo Murilo Pinto Taborda <20220057376>
 :numbered:
 :icons: font
@@ -402,3 +402,177 @@ image::capitulo_15/resultado_tiltshift.png[Tilt-Shift, 450, role="thumb"]
 video::capitulo_15/miniature_video.mp4[width=550, options="autoplay,loop,muted"]
 
 Arquivo de vídeo original em AVI gerado pelo programa: link:capitulo_15/miniature_video.avi[miniature_video.avi]
+
+
+== Capítulo 16: A Transformada Discreta de Fourier
+
+Neste capítulo, calculei o espectro de magnitude da Transformada Discreta de Fourier (DFT) bidimensional para a imagem senoidal de stem:[256 \times 256] pixels com 8 períodos na horizontal, comparando a versão salva em formato PNG (8 bits) com a versão armazenada em ponto flutuante no arquivo YAML (`senoide-256.yml`).
+
+Para gerar o par de arquivos equivalentes com 8 períodos, utilizei o programa `filestorage.cpp` como base. Em seguida, adaptei o `dft.cpp` para aceitar tanto imagens convencionais (via `cv::imread`) quanto matrizes serializadas em YAML (via `cv::FileStorage` lendo a chave `mat`). Na leitura do arquivo YAML, mantive os dados diretamente em ponto flutuante (`CV_32F`) sem convertê-los para 8 bits antes da transformada. Após aplicar o *zero-padding* para o tamanho ótimo da FFT (`cv::getOptimalDFTSize`), calcular a DFT, trocar os quadrantes para centralizar a origem e aplicar a compressão logarítmica stem:[\log(1 + |F(u,v)|)], o programa salva automaticamente o espectro de magnitude normalizado via `cv::imwrite`.
+
+*Comparação com o espectro teórico e análise dos resultados:*
+
+* *Valor teórico:* A imagem representa uma senóide horizontal pura de 8 períodos somada a um valor médio constante (nível DC): stem:[f(x, y) = 128 + 127 \sin(2\pi \cdot 8 \cdot x / 256)]. No domínio da frequência com a origem centralizada, a DFT teórica apresenta exatamente *três impulsos* sobre o eixo horizontal central (stem:[v = 0]) em um fundo completamente preto: um pico central na origem stem:[(0, 0)] correspondente à componente DC e dois picos simétricos em stem:[(-8, 0)] e stem:[(+8, 0)] referentes à frequência fundamental.
+* *Espectro obtido com o arquivo PNG (`senoide-256.png`):* Além dos três picos previstos pela teoria, surgem vários pontos espúrios alinhados ao longo de toda a linha horizontal central. Isso ocorre porque o formato PNG armazena apenas inteiros sem sinal de 8 bits (`CV_8U`, de 0 a 255), obrigando o arredondamento/truncamento dos valores contínuos da senóide. Esse erro de quantização periódico distorce levemente a forma de onda e introduz harmônicas extras de baixa energia, que se tornam claramente visíveis após a compressão logarítmica usada na exibição.
+* *Espectro obtido com o arquivo YAML (`senoide-256.yml`):* Os pontos extras ao longo do eixo horizontal desaparecem, restando praticamente apenas os três impulsos previstos teoricamente (DC no centro e os dois picos simétricos da frequência fundamental). Essa aproximação fiel ao valor teórico aconteceu porque o arquivo YAML preserva a matriz em ponto flutuante de 32 bits (`CV_32FC1`), eliminando o erro de quantização de 8 bits antes do cálculo da DFT.
+
+[source,cpp]
+.filestorage.cpp
+----
+include::capitulo_16/filestorage.cpp[]
+----
+
+[source,cpp]
+.dft.cpp
+----
+include::capitulo_16/dft.cpp[]
+----
+
+.Imagem senoidal 256x256 (8 períodos) utilizada na entrada
+image::capitulo_16/senoide-256.png[Senoide 256x256, 300, role="thumb"]
+
+.Espectro de magnitude obtido a partir do arquivo PNG (com harmônicas espúrias por quantização)
+image::capitulo_16/resultado_espectro_png.png[Espectro PNG, 300, role="thumb"]
+
+.Espectro de magnitude obtido a partir do arquivo YAML em ponto flutuante (próximo ao teórico)
+image::capitulo_16/resultado_espectro_yml.png[Espectro YAML, 300, role="thumb"]
+
+
+== Capítulo 17: Filtragem no Domínio da Frequência (Filtro Homomórfico)
+
+Neste capítulo, implementei o filtro homomórfico a partir do programa `dftfilter.cpp` para corrigir a iluminação irregular de uma cena capturada em baixa luminosidade (`cena_escura.jpg`) convertida para tons de cinza.
+
+O filtro homomórfico parte do modelo de formação da imagem como o produto entre a componente de iluminação (baixas frequências) e a componente de refletância (altas frequências), stem:[f(x,y) = i(x,y) \cdot r(x,y)]. Para atuar sobre essas componentes de maneira independente no domínio da frequência, apliquei a transformação logarítmica stem:[\ln(1 + f(x,y))] antes do cálculo da DFT (separando o produto em soma), utilizei *padding* por replicação de bordas (`cv::BORDER_REPLICATE`) para evitar artefatos nas extremidades e multipliquei o espectro centralizado pela função de transferência do filtro homomórfico via `cv::mulSpectrums`:
+
+stem:[H(u,v) = (\gamma_H - \gamma_L)\left(1 - e^{-c \frac{D^2(u,v)}{D_0^2}}\right) + \gamma_L]
+
+Após a filtragem, desfiz a troca de quadrantes, calculei a transformada inversa (`cv::idft` com a flag `cv::DFT_SCALE`), recortei a região de interesse original e apliquei a função exponencial para retornar ao domínio espacial. O ajuste dos parâmetros foi feito interativamente com *trackbars*, chegando ao melhor equilíbrio entre compressão da variação de iluminação (atenuação das baixas frequências) e realce dos detalhes nas regiões sombreadas (amplificação das altas frequências) com os valores stem:[\gamma_L = 0{,}40], stem:[\gamma_H = 2{,}00], stem:[c = 1{,}00] e stem:[D_0 = 30{,}00].
+
+[source,cpp]
+.homomorfico.cpp
+----
+include::capitulo_17/homomorfico.cpp[]
+----
+
+.Cena original com iluminação irregular em tons de cinza
+image::capitulo_17/resultado_original_cinza.png[Cena Original Cinza, 400, role="thumb"]
+
+.Máscara do filtro homomórfico H(u,v) no domínio da frequência
+image::capitulo_17/resultado_filtro_homomorfico.png[Máscara Homomórfica, 350, role="thumb"]
+
+.Resultado após a filtragem homomórfica (gamma_L = 0.40, gamma_H = 2.00, c = 1.00, D0 = 30.00)
+image::capitulo_17/resultado_homomorfico.png[Resultado Homomórfico, 400, role="thumb"]
+
+
+== Capítulo 18: Limiarização
+
+Neste capítulo, avaliei a limiarização automática pelo método de Otsu (`cv::THRESH_BINARY | cv::THRESH_OTSU`) na imagem `sementes2.png` e implementei uma etapa prévia de correção de iluminação utilizando filtragem gaussiana para viabilizar a segmentação correta das sementes.
+
+*Análise da limiarização direta em `sementes2.png`:*
+Ao aplicar o algoritmo de Otsu diretamente sobre `sementes2.png`, o método calculou um único limiar global igual a `107`. Como a imagem apresenta um forte gradiente de iluminação — com a parte superior e os cantos bem mais escuros do que a região inferior —, os pixels do fundo nas áreas sombreadas possuem intensidade menor que o limiar global e acabam classificados como preto, fundindo-se com as sementes do topo e impedindo a segmentação correta.
+
+*Correção de iluminação combinando a imagem original com o filtro gaussiano:*
+Considerando o modelo multiplicativo de formação da imagem stem:[f(x,y) = r(x,y) \cdot i(x,y)], em que stem:[r(x,y)] representa a refletância dos objetos e stem:[i(x,y)] a iluminação da cena, apliquei um filtro gaussiano com desvio padrão elevado (stem:[\sigma = 35]) sobre a imagem em ponto flutuante (`CV_32F`). Com um stem:[\sigma] bem maior que o tamanho das sementes, os objetos são suavizados e a imagem filtrada passa a estimar apenas o perfil lento da iluminação de fundo stem:[i(x,y)].
+
+Para remover o gradiente de iluminação, combinei as duas imagens por meio da *divisão* ponto a ponto (somando `1.0` no numerador e no denominador para evitar divisão por zero):
+
+stem:[f_{\text{corr}}(x,y) = \frac{f(x,y) + 1}{f_{\text{gauss}}(x,y) + 1}]
+
+Após normalizar o resultado para o intervalo `[0, 255]`, o fundo tornou-se uniforme em toda a cena, preservando o contraste das sementes mesmo nas regiões originalmente mais escuras. Aplicando novamente o método de Otsu sobre a imagem corrigida (limiar calculado igual a `110`), todas as sementes foram separadas do fundo de forma limpa e precisa.
+
+[source,cpp]
+.threshold.cpp
+----
+include::capitulo_18/threshold.cpp[]
+----
+
+.Imagem original sementes2.png com iluminação irregular
+image::capitulo_18/sementes2.png[Sementes 2 Original, 320, role="thumb"]
+
+.Resultado da limiarização de Otsu direta (limiar = 107) comprometida pelo gradiente de iluminação
+image::capitulo_18/resultado_otsu_sementes2.png[Otsu Direto Sementes 2, 320, role="thumb"]
+
+.Estimativa da iluminação de fundo obtida com filtro gaussiano (sigma = 35)
+image::capitulo_18/resultado_gaussiano_sementes2.png[Fundo Gaussiano Sementes 2, 320, role="thumb"]
+
+.Imagem após a correção de iluminação por divisão pelo fundo estimado
+image::capitulo_18/resultado_corrigida_sementes2.png[Iluminação Corrigida Sementes 2, 320, role="thumb"]
+
+.Resultado final da limiarização de Otsu após a correção (limiar = 110)
+image::capitulo_18/resultado_otsu_corrigido_sementes2.png[Otsu Corrigido Sementes 2, 320, role="thumb"]
+
+
+== Capítulo 19: Detecção de Bordas com o Algoritmo de Canny (Pontilhismo)
+
+Neste capítulo, implementei o programa `cannypoints.cpp` combinando o detector de bordas de Canny com a técnica artística de pontilhismo sobre a imagem colorida `noturno_icon.jpg` (stem:[720 \times 887] pixels). Para preservar as cores originais da ilustração na pintura final, o detector de Canny foi executado sobre uma cópia em tons de cinza (`cv::COLOR_BGR2GRAY`), enquanto os círculos foram desenhados utilizando a cor BGR amostrada diretamente da imagem original.
+
+O procedimento foi dividido em duas etapas principais:
+
+1. *Camada base (pontilhismo tradicional):* Percorri a imagem com passo `STEP = 5` e deslocamento aleatório `JITTER = 3`, embaralhando tanto os índices das linhas quanto os das colunas (`std::shuffle`) para evitar alinhamentos artificiais. Em cada posição amostrada, desenhei círculos preenchidos maiores (`RAIO = 5`) com *antialiasing* (`cv::LINE_AA`), formando a textura pontilhista de fundo.
+2. *Refinamento progressivo com bordas de Canny:* Executei o algoritmo de Canny em quatro passagens com limiares crescentes, mantendo a proporção recomendada stem:[T_2 = 3 \cdot T_1]. Em cada passagem, coletei todos os pixels de borda detectados, embaralhei a ordem de desenho para evitar sobreposições direcionais e tracei círculos progressivamente menores com a cor do pixel correspondente:
+* Limiares `(20, 60)` — `28.206` pontos de borda desenhados com raio `4`;
+* Limiares `(50, 150)` — `10.512` pontos de borda desenhados com raio `3`;
+* Limiares `(90, 270)` — `3.202` pontos de borda desenhados com raio `2`;
+* Limiares `(140, 420)` — `972` pontos de borda desenhados com raio `1`.
+
+Dessa forma, as regiões uniformes mantiveram os pontos mais largos do pontilhismo inicial, enquanto as transições suaves receberam acabamento intermediário e os contornos mais fortes (como o rosto, o olho brilhante, os fios de cabelo e a gola) ganharam alta definição com círculos de raio reduzido.
+
+[source,cpp]
+.cannypoints.cpp
+----
+include::capitulo_19/cannypoints.cpp[]
+----
+
+.Imagem original noturno_icon.jpg utilizada como referência
+image::capitulo_19/noturno_icon.jpg[Noturno Original, 320, role="thumb"]
+
+.Etapa 1: Pontilhismo básico sem refinamento de bordas (STEP = 5, RAIO = 5)
+image::capitulo_19/resultado_pontilhismo_base.png[Pontilhismo Base, 320, role="thumb"]
+
+.Mapa de bordas intermediário detectado por Canny (limiares 50 e 150)
+image::capitulo_19/resultado_canny_bordas.png[Bordas Canny, 320, role="thumb"]
+
+.Resultado final do CannyPoints após as quatro passagens progressivas de refinamento
+image::capitulo_19/resultado_cannypoints.png[CannyPoints Final, 320, role="thumb"]
+
+== Capítulo 20: Quantização Vetorial com k-means
+
+Neste capítulo, adaptei o programa `kmeans.cpp` para executar a quantização vetorial de cores sobre `noturno_icon.jpg` utilizando stem:[k = 8] *clusters*, com `nRodadas = 1` e inicialização puramente aleatória dos centróides (`cv::KMEANS_RANDOM_CENTERS`) em vez de `cv::KMEANS_PP_CENTERS`. O programa foi configurado para realizar 10 rodadas independentes, medindo a compacidade (soma dos quadrados das distâncias dos pixels aos seus respectivos centróides) de cada execução e montando uma grade comparativa com os 10 resultados.
+
+.Compacidade obtida em cada uma das 10 rodadas (k = 8, nRodadas = 1, KMEANS_RANDOM_CENTERS)
+[cols="^1,^2,^2", options="header"]
+|===
+| Rodada | Compacidade (stem:[\times 10^6]) | Observação
+| 01 | 292,79 | Melhor compacidade (menor erro)
+| 02 | 292,79 | Empate no melhor mínimo local
+| 03 | 346,80 | Mínimo local intermediário
+| 04 | 365,46 | Pior compacidade (maior erro)
+| 05 | 365,46 | Empate no pior mínimo local
+| 06 | 292,79 | Empate no melhor mínimo local
+| 07 | 334,31 | Mínimo local intermediário
+| 08 | 334,39 | Mínimo local intermediário
+| 09 | 346,82 | Mínimo local intermediário
+| 10 | 346,82 | Mínimo local intermediário
+|===
+
+*Por que as imagens produzidas podem diferir tanto entre as rodadas?*
+
+O algoritmo *k*-means é um método iterativo guloso que busca minimizar a soma das distâncias quadráticas de cada amostra ao centróide da sua classe, mas garante convergência apenas para um *mínimo local* — que depende diretamente das posições escolhidas para os centros iniciais.
+
+* *Inicialização aleatória (`KMEANS_RANDOM_CENTERS`):* Diferentemente do `KMEANS_PP_CENTERS` (*k*-means++), que distribui os centróides iniciais de forma probabilística para cobrir melhor todo o espaço de cores, a inicialização aleatória sorteia os stem:[k] centros sem critério de espalhamento. Se vários centros caírem inicialmente em regiões muito densas (como tons escuros ou azuis) e nenhum cair próximo a cores minoritárias ou transições específicas, o algoritmo pode ficar preso em um particionamento subótimo, fundindo regiões distintas sob o mesmo centróide e alterando significativamente a paleta final.
+* *Execução única (`nRodadas = 1`):* Com `nRodadas > 1`, o OpenCV executa o algoritmo várias vezes e descarta os piores resultados, mantendo apenas a rodada de menor compacidade. Ao fixar `nRodadas = 1`, cada execução fica restrita ao mínimo local alcançado a partir daquele único sorteio. Nos testes, isso ficou evidente nos quatro platôs distintos de compacidade observados, com uma variação de cerca de 24,8% entre a melhor rodada (`292,79e6`, Rodada 01) e a pior (`365,46e6`, Rodada 04).
+
+[source,cpp]
+.kmeans.cpp
+----
+include::capitulo_20/kmeans.cpp[]
+----
+
+.Comparação lado a lado das 10 rodadas independentes com KMEANS_RANDOM_CENTERS e nRodadas = 1
+image::capitulo_20/resultado_kmeans_grade.png[Grade 10 Rodadas K-Means, 700, role="thumb"]
+
+.Melhor rodada (Rodada 01 - Compacidade: 292,79e6)
+image::capitulo_20/resultado_kmeans_01.png[K-Means Melhor Rodada, 320, role="thumb"]
+
+.Pior rodada (Rodada 04 - Compacidade: 365,46e6)
+image::capitulo_20/resultado_kmeans_04.png[K-Means Pior Rodada, 320, role="thumb"]
